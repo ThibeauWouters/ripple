@@ -229,20 +229,13 @@ def get_tidal_phase(fgrid: Array, theta: Array, f_ref: float) -> Array:
     m2ByM = 0.5 * (1.0 - Seta)
     PHI_fJoin_INS = 0.018 # IMRPhenomD parameter
     
-    # TODO something wrong here maybe?
-    # # Get quadrupole and octupole parameters
-    # quadparam1, octparam1 = get_quadparam_octparam(lambda1)
-    # quadparam2, octparam2 = get_quadparam_octparam(lambda2)
+    # Get quadrupole and octupole parameters
+    quadparam1, octparam1 = get_quadparam_octparam(lambda1)
+    quadparam2, octparam2 = get_quadparam_octparam(lambda2)
     
-    quadparam1 = jnp.where(lambda1 < 1., 1. + lambda1*(0.427688866723244 + lambda1*(-0.324336526985068 + lambda1*0.1107439432180572)), jnp.exp(0.1940 + 0.09163 * jnp.log(lambda1) + 0.04812 * jnp.log(lambda1) * jnp.log(lambda1) -4.283e-3 * jnp.log(lambda1) * jnp.log(lambda1) * jnp.log(lambda1) + 1.245e-4 * jnp.log(lambda1) * jnp.log(lambda1) * jnp.log(lambda1) * jnp.log(lambda1)))
-    quadparam2 = jnp.where(lambda2 < 1., 1. + lambda2*(0.427688866723244 + lambda2*(-0.324336526985068 + lambda2*0.1107439432180572)), jnp.exp(0.1940 + 0.09163 * jnp.log(lambda2) + 0.04812 * jnp.log(lambda2) * jnp.log(lambda2) -4.283e-3 * jnp.log(lambda2) * jnp.log(lambda2) * jnp.log(lambda2) + 1.245e-4 * jnp.log(lambda2) * jnp.log(lambda2) * jnp.log(lambda2) * jnp.log(lambda2)))
-    
-    octparam1 = - 1. + jnp.exp(0.003131 + 2.071 * jnp.log(quadparam1)  - 0.7152 * jnp.log(quadparam1) * jnp.log(quadparam1) + 0.2458 * jnp.log(quadparam1) * jnp.log(quadparam1) * jnp.log(quadparam1) - 0.03309 * jnp.log(quadparam1) * jnp.log(quadparam1) * jnp.log(quadparam1) * jnp.log(quadparam1))
-    octparam2 = - 1. + jnp.exp(0.003131 + 2.071 * jnp.log(quadparam2)  - 0.7152 * jnp.log(quadparam2) * jnp.log(quadparam2) + 0.2458 * jnp.log(quadparam2) * jnp.log(quadparam2) * jnp.log(quadparam2) - 0.03309 * jnp.log(quadparam2) * jnp.log(quadparam2) * jnp.log(quadparam2) * jnp.log(quadparam2))
-    
-    # # Subtract one from octupole moment to account for BBH baseline
-    # octparam1 -= 1.
-    # octparam2 -= 1.   
+    # Subtract one from octupole moment to account for BBH baseline
+    octparam1 -= 1.
+    octparam2 -= 1.   
     
     # As in arXiv:1508.07253 eq. (4) and LALSimIMRPhenomD_internals.c line 97
     chiPN = (chi_s * (1.0 - eta * 76.0 / 113.0) + Seta * chi_a)
@@ -434,6 +427,8 @@ def gen_NRTidalv2(f: Array, params: Array, f_ref: float, IMRphenom: str, use_lam
     f_ref: Reference frequency for the waveform
     
     IMRphenom: string selecting the underlying BBH approximant
+    
+    use_lambda_tildes (bool): If True, signifies that given tidal parameters are lambda_tildes instead of lambda_1, lambda_2
 
     Returns:
     --------
@@ -442,6 +437,7 @@ def gen_NRTidalv2(f: Array, params: Array, f_ref: float, IMRphenom: str, use_lam
     
     # Get component masses
     m1, m2 = Mc_eta_to_ms(jnp.array([params[0], params[1]]))
+    # Internally, we use lambda_1, lambda_2 for tidal parameters, but samplers might use lambda_tildes
     if use_lambda_tildes:
         lambda1, lambda2 = lambda_tildes_to_lambdas(jnp.array([params[4], params[5], m1, m2]))
     else:
