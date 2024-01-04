@@ -3,6 +3,11 @@
 import jax
 import jax.numpy as jnp
 
+### DEBUG
+jax.config.update("jax_debug_nans", True)
+jax.config.update("jax_disable_jit", True)
+### DEBUG
+
 from ..constants import EulerGamma, gt, m_per_Mpc, C, PI, TWO_PI, MSUN, MRSUN
 from ..typing import Array
 from ripple import Mc_eta_to_ms, ms_to_Mc_eta, lambda_tildes_to_lambdas, lambdas_to_lambda_tildes
@@ -19,7 +24,7 @@ def _get_f_merger(theta: Array, physical=False):
     m1_s = m1 * gt
     m2_s = m2 * gt
     M_s = m1_s + m2_s
-    eta = m1 * m2 / (m1 + m2) ** 2
+    _, eta = ms_to_Mc_eta(jnp.array([m1, m2]))
     Seta = jnp.sqrt(jnp.where(eta<0.25, 1.0 - 4.0*eta, 0.))
     q = 0.5*(1.0 + Seta - 2.0*eta)/eta
     Xa = 0.5 * (1.0 + Seta)
@@ -37,7 +42,7 @@ def _get_f_merger(theta: Array, physical=False):
     numPT = 1.0 + n_1*kappa2T + n_2*kappa2T2
     denPT = 1.0 + d_1*kappa2T + d_2*kappa2T2
     Q_0 = a_0 / jnp.sqrt(q)
-    f_merger = Q_0 * (numPT / denPT) / (2.*jnp.pi)
+    f_merger = Q_0 * (numPT / denPT) / (2.*PI)
     
     # Convert to units
     if physical:
@@ -66,7 +71,7 @@ def get_tidal_amplitude(fgrid: Array, theta: Array, f_ref: float, distance: floa
     m1_s = m1 * gt
     m2_s = m2 * gt
     M_s = m1_s + m2_s
-    eta = m1 * m2 / (m1 + m2) ** 2
+    _, eta = ms_to_Mc_eta(jnp.array([m1, m2]))
     eta2 = eta*eta
     chi12 = chi1 * chi1
     chi22 = chi2 * chi2
@@ -108,18 +113,18 @@ def get_tidal_amplitude(fgrid: Array, theta: Array, f_ref: float, distance: floa
     # First write the inspiral coefficients, we put them in a dictionary and label with the power in front of which they appear
     
     Acoeffs = {}
-    Acoeffs['two_thirds'] = ((-969. + 1804.*eta)*(jnp.pi**(2./3.)))/672.
-    Acoeffs['one'] = ((chi1*(81.*SetaPlus1 - 44.*eta) + chi2*(81. - 81.*Seta - 44.*eta))*jnp.pi)/48.
-    Acoeffs['four_thirds'] = ((-27312085.0 - 10287648.*chi22 - 10287648.*chi12*SetaPlus1 + 10287648.*chi22*Seta+ 24.*(-1975055. + 857304.*chi12 - 994896.*chi1*chi2 + 857304.*chi22)*eta+ 35371056*eta2)* (jnp.pi**(4./3.)))/8.128512e6
-    Acoeffs['five_thirds'] = ((jnp.pi**(5./3.)) * (chi2*(-285197.*(-1. + Seta) + 4.*(-91902. + 1579.*Seta)*eta - 35632.*eta2) + chi1*(285197.*SetaPlus1 - 4.*(91902. + 1579.*Seta)*eta - 35632.*eta2) + 42840.*(-1.0 + 4.*eta)*jnp.pi)) / 32256.
-    Acoeffs['two'] = - ((jnp.pi**2.)*(-336.*(-3248849057.0 + 2943675504.*chi12 - 3339284256.*chi1*chi2 + 2943675504.*chi22)*eta2 - 324322727232.*eta2*eta - 7.*(-177520268561. + 107414046432.*chi22 + 107414046432.*chi12*SetaPlus1 - 107414046432.*chi22*Seta + 11087290368.*(chi1 + chi2 + chi1*Seta - chi2*Seta)*jnp.pi ) + 12.*eta*(-545384828789. - 176491177632.*chi1*chi2 + 202603761360.*chi22 + 77616.*chi12*(2610335. + 995766.*Seta) - 77287373856.*chi22*Seta + 5841690624.*(chi1 + chi2)*jnp.pi + 21384760320.*jnp.pi*jnp.pi)))/6.0085960704e10
+    Acoeffs['two_thirds'] = ((-969. + 1804.*eta)*(PI**(2./3.)))/672.
+    Acoeffs['one'] = ((chi1*(81.*SetaPlus1 - 44.*eta) + chi2*(81. - 81.*Seta - 44.*eta))*PI)/48.
+    Acoeffs['four_thirds'] = ((-27312085.0 - 10287648.*chi22 - 10287648.*chi12*SetaPlus1 + 10287648.*chi22*Seta+ 24.*(-1975055. + 857304.*chi12 - 994896.*chi1*chi2 + 857304.*chi22)*eta+ 35371056*eta2)* (PI**(4./3.)))/8.128512e6
+    Acoeffs['five_thirds'] = ((PI**(5./3.)) * (chi2*(-285197.*(-1. + Seta) + 4.*(-91902. + 1579.*Seta)*eta - 35632.*eta2) + chi1*(285197.*SetaPlus1 - 4.*(91902. + 1579.*Seta)*eta - 35632.*eta2) + 42840.*(-1.0 + 4.*eta)*PI)) / 32256.
+    Acoeffs['two'] = - ((PI**2.)*(-336.*(-3248849057.0 + 2943675504.*chi12 - 3339284256.*chi1*chi2 + 2943675504.*chi22)*eta2 - 324322727232.*eta2*eta - 7.*(-177520268561. + 107414046432.*chi22 + 107414046432.*chi12*SetaPlus1 - 107414046432.*chi22*Seta + 11087290368.*(chi1 + chi2 + chi1*Seta - chi2*Seta)*PI ) + 12.*eta*(-545384828789. - 176491177632.*chi1*chi2 + 202603761360.*chi22 + 77616.*chi12*(2610335. + 995766.*Seta) - 77287373856.*chi22*Seta + 5841690624.*(chi1 + chi2)*PI + 21384760320.*PI*PI)))/6.0085960704e10
     Acoeffs['seven_thirds'] = rho1
     Acoeffs['eight_thirds'] = rho2
     Acoeffs['three'] = rho3
     # v1 is the inspiral model evaluated at f1Interm
     v1 = 1. + (f1Interm**(2./3.))*Acoeffs['two_thirds'] + (f1Interm**(4./3.)) * Acoeffs['four_thirds'] + (f1Interm**(5./3.)) *  Acoeffs['five_thirds'] + (f1Interm**(7./3.)) * Acoeffs['seven_thirds'] + (f1Interm**(8./3.)) * Acoeffs['eight_thirds'] + f1Interm * (Acoeffs['one'] + f1Interm * Acoeffs['two'] + f1Interm*f1Interm * Acoeffs['three'])
     # d1 is the derivative of the inspiral model evaluated at f1
-    d1 = ((-969. + 1804.*eta)*(jnp.pi**(2./3.)))/(1008.*(f1Interm**(1./3.))) + ((chi1*(81.*SetaPlus1 - 44.*eta) + chi2*(81. - 81.*Seta - 44.*eta))*jnp.pi)/48. + ((-27312085. - 10287648.*chi22 - 10287648.*chi12*SetaPlus1 + 10287648.*chi22*Seta + 24.*(-1975055. + 857304.*chi12 - 994896.*chi1*chi2 + 857304.*chi22)*eta + 35371056.*eta2)*(f1Interm**(1./3.))*(jnp.pi**(4./3.)))/6.096384e6 + (5.*(f1Interm**(2./3.))*(jnp.pi**(5./3.))*(chi2*(-285197.*(-1 + Seta)+ 4.*(-91902. + 1579.*Seta)*eta - 35632.*eta2) + chi1*(285197.*SetaPlus1- 4.*(91902. + 1579.*Seta)*eta - 35632.*eta2) + 42840.*(-1 + 4*eta)*jnp.pi))/96768.- (f1Interm*jnp.pi*jnp.pi*(-336.*(-3248849057.0 + 2943675504.*chi12 - 3339284256.*chi1*chi2 + 2943675504.*chi22)*eta2 - 324322727232.*eta2*eta - 7.*(-177520268561. + 107414046432.*chi22 + 107414046432.*chi12*SetaPlus1 - 107414046432.*chi22*Seta+ 11087290368*(chi1 + chi2 + chi1*Seta - chi2*Seta)*jnp.pi)+ 12.*eta*(-545384828789.0 - 176491177632.*chi1*chi2 + 202603761360.*chi22 + 77616.*chi12*(2610335. + 995766.*Seta)- 77287373856.*chi22*Seta + 5841690624.*(chi1 + chi2)*jnp.pi + 21384760320*jnp.pi*jnp.pi)))/3.0042980352e10+ (7.0/3.0)*(f1Interm**(4./3.))*rho1 + (8.0/3.0)*(f1Interm**(5./3.))*rho2 + 3.*(f1Interm*f1Interm)*rho3
+    d1 = ((-969. + 1804.*eta)*(PI**(2./3.)))/(1008.*(f1Interm**(1./3.))) + ((chi1*(81.*SetaPlus1 - 44.*eta) + chi2*(81. - 81.*Seta - 44.*eta))*PI)/48. + ((-27312085. - 10287648.*chi22 - 10287648.*chi12*SetaPlus1 + 10287648.*chi22*Seta + 24.*(-1975055. + 857304.*chi12 - 994896.*chi1*chi2 + 857304.*chi22)*eta + 35371056.*eta2)*(f1Interm**(1./3.))*(PI**(4./3.)))/6.096384e6 + (5.*(f1Interm**(2./3.))*(PI**(5./3.))*(chi2*(-285197.*(-1 + Seta)+ 4.*(-91902. + 1579.*Seta)*eta - 35632.*eta2) + chi1*(285197.*SetaPlus1- 4.*(91902. + 1579.*Seta)*eta - 35632.*eta2) + 42840.*(-1 + 4*eta)*PI))/96768.- (f1Interm*PI*PI*(-336.*(-3248849057.0 + 2943675504.*chi12 - 3339284256.*chi1*chi2 + 2943675504.*chi22)*eta2 - 324322727232.*eta2*eta - 7.*(-177520268561. + 107414046432.*chi22 + 107414046432.*chi12*SetaPlus1 - 107414046432.*chi22*Seta+ 11087290368*(chi1 + chi2 + chi1*Seta - chi2*Seta)*PI)+ 12.*eta*(-545384828789.0 - 176491177632.*chi1*chi2 + 202603761360.*chi22 + 77616.*chi12*(2610335. + 995766.*Seta)- 77287373856.*chi22*Seta + 5841690624.*(chi1 + chi2)*PI + 21384760320*PI*PI)))/3.0042980352e10+ (7.0/3.0)*(f1Interm**(4./3.))*rho1 + (8.0/3.0)*(f1Interm**(5./3.))*rho2 + 3.*(f1Interm*f1Interm)*rho3
     # v3 is the merger-ringdown model (eq. (19) of arXiv:1508.07253) evaluated at f3
     v3 = jnp.exp(-(f3Interm - fring)*gamma2/(fdamp*gamma3))* (fdamp*gamma3*gamma1) / ((f3Interm - fring)*(f3Interm - fring) + fdamp*gamma3*fdamp*gamma3)
     # d2 is the derivative of the merger-ringdown model evaluated at f3
@@ -150,16 +155,14 @@ def get_tidal_amplitude(fgrid: Array, theta: Array, f_ref: float, distance: floa
     delta4 = -((d2*f13*f2 - d1*f12*f22 - 2*d2*f12*f22 + d1*f1*f23 + d2*f1*f23 - d2*f13*f3 + 2.*d1*f12*f2*f3 + d2*f12*f2*f3 - d1*f1*f22*f3 + d2*f1*f22*f3 - d1*f23*f3 - d2*f23*f3 - d1*f12*f32 + d2*f12*f32 - d1*f1*f2*f32 - 2*d2*f1*f2*f32 + 2*d1*f22*f32 + d2*f22*f32 + d1*f1*f33 - d1*f2*f33 + 3*f1*f22*v1 - 2*f23*v1 - 6*f1*f2*f3*v1 + 3*f22*f3*v1 + 3*f1*f32*v1 - f33*v1 - f13*v2 + 3*f12*f3*v2 - 3*f1*f32*v2 + f33*v2 + f13*v3 - 3*f1*f22*v3 + 2*f23*v3 - 3*f12*f3*v3 + 6*f1*f2*f3*v3 - 3*f22*f3*v3) / ((f1 - f2)*(f1 - f2)*(f1 - f3)*(f1 - f3)*(f1 - f3)*(f3 - f2)*(f3 - f2)))
     
     # Overall amplitude, see LALSimIMRPhenomD.c line 332
-    # TODO this is broken? Why? 
-    # amp0_lal = get_amp0_lal(m1+m2, distance * 1e6)
-    amp0_lal = 2. * jnp.sqrt(5./(64.*jnp.pi)) * M * GMsun_over_c2_Gpc * M * GMsun_over_c3 / (distance * 1e-3)
+    amp0_lal = 2. * jnp.sqrt(5./(64.*PI)) * M * GMsun_over_c2_Gpc * M * GMsun_over_c3 / (distance * 1e-3)
     
     # Get IMR amplitude
     fcutPar = 0.2
     amplitudeIMR = jnp.where(fgrid < AMP_fJoin_INS, 1. + (fgrid**(2./3.))*Acoeffs['two_thirds'] + (fgrid**(4./3.)) * Acoeffs['four_thirds'] + (fgrid**(5./3.)) *  Acoeffs['five_thirds'] + (fgrid**(7./3.)) * Acoeffs['seven_thirds'] + (fgrid**(8./3.)) * Acoeffs['eight_thirds'] + fgrid * (Acoeffs['one'] + fgrid * Acoeffs['two'] + fgrid*fgrid * Acoeffs['three']), jnp.where(fgrid < fpeak, delta0 + fgrid*delta1 + fgrid*fgrid*(delta2 + fgrid*delta3 + fgrid*fgrid*delta4), jnp.where(fgrid < fcutPar,jnp.exp(-(fgrid - fring)*gamma2/(fdamp*gamma3))* (fdamp*gamma3*gamma1) / ((fgrid - fring)*(fgrid - fring) + fdamp*gamma3*fdamp*gamma3), 0.)))
     
     # Now compute the amplitude modification as in arXiv:1905.06011 eq. (24)
-    xTidal = (jnp.pi * fgrid)**(2./3.)
+    xTidal = (PI * fgrid)**(2./3.)
     n1T    = 4.157407407407407
     n289T  = 2519.111111111111
     dTidal = 13477.8073677
@@ -190,9 +193,11 @@ def get_tidal_amplitude(fgrid: Array, theta: Array, f_ref: float, distance: floa
     # Now compute tha Planck taper series
     # This filter causes big numerical issues at the cut when computing derivatives and the last element is very small but not 0. We fix it "by hand" with this nan_to_num which assigns 0 in place of NaN. We performed extensive checks and this does not affect any other part of the computation, only the very last point of the frequency grid in some random and rare cases.
     planck_taper = jnp.nan_to_num(planck_taper_fun(fgrid, f_merger))
-    amp0 = jnp.sqrt(2.0*eta/3.0)*(jnp.pi**(-1./6.))
     
-    return amp0_lal*(amp0*(fgrid**(-7./6.))*amplitudeIMR + 2*jnp.sqrt(jnp.pi/5.)*ampTidal)*planck_taper
+    amp0 = jnp.where(eta > 0, jnp.sqrt(2.0*eta/3.0), 0.)*(PI**(-1./6.))
+    amp = amp0_lal*(amp0*(fgrid**(-7./6.))*amplitudeIMR + 2*jnp.sqrt(PI/5.)*ampTidal)*planck_taper
+    
+    return amp
 
 
 def get_tidal_phase(fgrid: Array, theta: Array, f_ref: float) -> Array:
@@ -213,7 +218,7 @@ def get_tidal_phase(fgrid: Array, theta: Array, f_ref: float) -> Array:
     # Auxiliary variables
     M = m1 + m2
     M_s = M * gt
-    eta = m1*m2/M**2
+    _, eta = ms_to_Mc_eta(jnp.array([m1, m2]))
     eta2 = eta*eta 
     etaInv = 1./eta
     chi12, chi22 = chi1*chi1, chi2*chi2
@@ -371,8 +376,6 @@ def get_tidal_phase(fgrid: Array, theta: Array, f_ref: float) -> Array:
     
     tidal_phase = - kappa2T * c_Newt / (m1ByM * m2ByM) * ((PI*fgrid)**(5./3.)) * numTidal / denTidal
     
-     
-    
     # Compute the higher order spin contributions
     SS_3p5PN  = - 400.*PI*(quadparam1-1.)*chi12*m1ByM*m1ByM - 400.*PI*(quadparam2-1.)*chi22*m2ByM*m2ByM
     SSS_3p5PN = 10.*((m1ByM*m1ByM+308./3.*m1ByM)*chi1+(m2ByM*m2ByM-89./3.*m2ByM)*chi2)*(quadparam1-1.)*m1ByM*m1ByM*chi12 + 10.*((m2ByM*m2ByM+308./3.*m2ByM)*chi2+(m1ByM*m1ByM-89./3.*m1ByM)*chi1)*(quadparam2-1.)*m2ByM*m2ByM*chi22 - 440.*octparam1*m1ByM*m1ByM*m1ByM*chi12*chi1 - 440.*octparam2*m2ByM*m2ByM*m2ByM*chi22*chi2
@@ -409,7 +412,7 @@ def _gen_NRTidalv2(f: Array, theta_intrinsic: Array, theta_extrinsic: Array, f_r
 
     return h0
 
-def gen_NRTidalv2(f: Array, params: Array, f_ref: float, IMRphenom: str, use_lambda_tildes: bool=True) -> Array:
+def gen_NRTidalv2(f: Array, params: Array, f_ref: float, use_lambda_tildes: bool=True) -> Array:
     """
     Generate NRTidalv2 frequency domain waveform following NRTidalv2 paper.
     vars array contains both intrinsic and extrinsic variables
@@ -437,21 +440,31 @@ def gen_NRTidalv2(f: Array, params: Array, f_ref: float, IMRphenom: str, use_lam
     
     # Get component masses
     m1, m2 = Mc_eta_to_ms(jnp.array([params[0], params[1]]))
+    print("lambda tilde")
+    print(params[4])
+    
+    print("delta lambda tilde")
+    print(params[5])
     # Internally, we use lambda_1, lambda_2 for tidal parameters, but samplers might use lambda_tildes
     if use_lambda_tildes:
         lambda1, lambda2 = lambda_tildes_to_lambdas(jnp.array([params[4], params[5], m1, m2]))
     else:
         lambda1, lambda2 = params[4], params[5]
-    chi1, chi2 = params[2], params[3]
     
-    theta_intrinsic = jnp.array([m1, m2, chi1, chi2, lambda1, lambda2])
-    theta_extrinsic = params[6:]
+    theta_intrinsic = jnp.array([m1, m2, params[2], params[3], lambda1, lambda2])
+    theta_extrinsic = jnp.array([params[6], params[7], params[8]])
+    
+    print("lambda1")
+    print(lambda1)
+    
+    print("lambda2")
+    print(lambda2)
 
     # Use BBH waveform and add tidal corrections
     return _gen_NRTidalv2(f, theta_intrinsic, theta_extrinsic, f_ref)
 
 
-def gen_NRTidalv2_hphc(f: Array, params: Array, f_ref: float, IMRphenom: str="IMRPhenomD", use_lambda_tildes: bool=True):
+def gen_NRTidalv2_hphc(f: Array, params: Array, f_ref: float, use_lambda_tildes: bool=True):
     """
     vars array contains both intrinsic and extrinsic variables
     
@@ -475,7 +488,7 @@ def gen_NRTidalv2_hphc(f: Array, params: Array, f_ref: float, IMRphenom: str="IM
         hc (array): Strain of the cross polarization
     """
     iota = params[-1]
-    h0 = gen_NRTidalv2(f, params[:-1], f_ref, IMRphenom=IMRphenom, use_lambda_tildes=use_lambda_tildes)
+    h0 = gen_NRTidalv2(f, params[:-1], f_ref, use_lambda_tildes=use_lambda_tildes)
     
     hp = h0 * (1 / 2 * (1 + jnp.cos(iota) ** 2))
     hc = -1j * h0 * jnp.cos(iota)

@@ -5,7 +5,7 @@ import jax
 
 from ..constants import gt
 from ..typing import Array
-
+from ripple import ms_to_Mc_eta
 from .IMRPhenomD_QNMdata import QNMData_a, QNMData_fRD, QNMData_fdamp
 
 
@@ -38,7 +38,7 @@ def EradRational0815_s(eta, s):
 
 
 def EradRational0815(eta, chi1, chi2):
-    Seta = jnp.sqrt(1.0 - 4.0 * eta)
+    Seta = jnp.sqrt(jnp.where(eta<0.25, 1.0 - 4.0*eta, 0.))
     m1 = 0.5 * (1.0 + Seta)
     m2 = 0.5 * (1.0 - Seta)
     m1s = m1 * m1
@@ -141,12 +141,12 @@ def get_coeffs(theta: Array) -> Array:
     m1_s = m1 * gt
     m2_s = m2 * gt
     M_s = m1_s + m2_s
-    eta = m1_s * m2_s / (M_s**2.0)
+    _, eta = ms_to_Mc_eta(jnp.array([m1, m2]))
 
     # Definition of chiPN from lalsuite
     chi_s = (chi1 + chi2) / 2.0
     chi_a = (chi1 - chi2) / 2.0
-    seta = (1 - 4 * eta) ** (1 / 2)
+    seta = jnp.sqrt(jnp.where(eta<0.25, 1.0 - 4.0*eta, 0.))
     chiPN = chi_s * (1 - 76 * eta / 113) + seta * chi_a
 
     coeff = (

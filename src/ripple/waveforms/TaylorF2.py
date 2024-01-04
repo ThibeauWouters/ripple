@@ -2,6 +2,11 @@
 import jax
 import jax.numpy as jnp
 
+### DEBUG
+jax.config.update("jax_debug_nans", True)
+jax.config.update("jax_disable_jit", True)
+### DEBUG
+
 from ..constants import EulerGamma, gt, m_per_Mpc, C, PI, MRSUN
 from ..typing import Array
 from ripple import Mc_eta_to_ms, ms_to_Mc_eta, lambda_tildes_to_lambdas, lambdas_to_lambda_tildes
@@ -193,10 +198,24 @@ def gen_TaylorF2(f: Array, params: Array, f_ref: float, use_lambda_tildes: bool 
     """
     # Lets make this easier by starting in Mchirp and eta space
     m1, m2 = Mc_eta_to_ms(jnp.array([params[0], params[1]]))
+    
+    print("lambda1")
+    print(params[4])
+    
+    print("lambda2")
+    print(params[5])
+    
+    
     if use_lambda_tildes:
         lambda1, lambda2 = lambda_tildes_to_lambdas(jnp.array([params[4], params[5], m1, m2]))
     else:
         lambda1, lambda2 = params[4], params[5]
+        
+    print("lambda1")
+    print(lambda1)
+    
+    print("lambda2")
+    print(lambda2)
     
     theta_intrinsic = jnp.array([m1, m2, params[2], params[3], lambda1, lambda2])
     theta_extrinsic = jnp.array([params[6], params[7], params[8]])

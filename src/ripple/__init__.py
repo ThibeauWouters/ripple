@@ -54,7 +54,14 @@ def ms_to_Mc_eta(m):
         the component masses
     """
     m1, m2 = m
-    return (m1 * m2) ** (3 / 5) / (m1 + m2) ** (1 / 5), m1 * m2 / (m1 + m2) ** 2
+    mc, eta = (m1 * m2) ** (3 / 5) / (m1 + m2) ** (1 / 5), m1 * m2 / (m1 + m2) ** 2
+    # If eta is equal to or greater than 0.25, nudge it down
+    eta = jax.lax.cond(eta >= 0.25,
+                       lambda x: x - 1e-6,
+                       lambda x: x,
+                       operand=eta
+                       )
+    return mc, eta
 
 # TODO in code below, reduce copy-paste
 def lambdas_to_lambda_tildes_from_q(params: Array):
