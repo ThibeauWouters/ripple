@@ -3,7 +3,8 @@
 import jax
 import jax.numpy as jnp
 from ..typing import Array
-from ..constants import EulerGamma, gt, m_per_Mpc, C, PI, TWO_PI, MSUN, MRSUN
+from ..constants import EulerGamma, gt, m_per_Mpc, C, PI, TWO_PI, MSUN, MRSUN, GMsun_over_c2_Gpc, GMsun_over_c3
+from .IMRPhenomD_utils import get_fRD_fdamp
 
 def universal_relation(coeffs: Array, x: float):
     """Applies the general formula of a universal relationship, which is a quartic polynomial.
@@ -128,86 +129,6 @@ def get_amp0_lal(M: float, distance: float):
     amp0 = 2. * jnp.sqrt(5. / (64. * PI)) * M * MRSUN * M * gt / distance
     return amp0
 
-# The code below to compute the Planck taper is obtained from gwfast (https://github.com/CosmoStatGW/gwfast/blob/ccde00e644682639aa8c9cbae323e42718fd61ca/gwfast/waveforms.py#L1332)
-@jax.custom_jvp
-def planck_taper_fun(x, y):
-    # Terminate the waveform at 1.2 times the merger frequency
-    a=1.2
-    yp = a*y
-    planck_taper = jnp.where(x < y, 1., jnp.where(x > yp, 0., 1. - 1./(jnp.exp((yp - y)/(x - y) + (yp - y)/(x - yp)) + 1.)))
-
-    return planck_taper
-
-def planck_taper_fun_der(x,y):
-    # Terminate the waveform at 1.2 times the merger frequency
-    a = 1.2
-    yp = a*y
-    tangent_out = jnp.where(x < y, 0., jnp.where(x > yp, 0., jnp.exp((yp - y)/(x - y) + (yp - y)/(x - yp))*((-1.+a)/(x-y) + (-1.+a)/(x-yp) + (-y+yp)/((x-y)**2) + 1.2*(-y+yp)/((x-yp)**2))/((jnp.exp((yp - y)/(x - y) + (yp - y)/(x - yp)) + 1.)**2)))
-    tangent_out = jnp.nan_to_num(tangent_out)
-    return tangent_out
-planck_taper_fun.defjvps(None, lambda y_dot, primal_out, x, y: planck_taper_fun_der(x,y) * y_dot)
-        
-def planck_taper(t: Array, t1: float, t2: float) -> Array:
-    """Function to compute the Planck taper window between t1 and t2.
-
-    Args:
-        t (Array): Times at which the Planck taper has to be computed.
-        t1 (float): Start of Planck taper.
-        t2 (float): End of Planck taper.
-
-    Returns:
-        Array: Planck taper A_P
-    """
-
-    # Planck taper consists of three parts:
-    begin = jnp.zeros_like(t)
-    end = jnp.ones_like(t)
-    middle = 1. / (jnp.exp((t2 - t1)/(t - t1) + (t2 - t1)/(t - t2)) + 1.)
-
-    # Build the taper from the three parts with step functions
-    taper = jnp.heaviside(t1 - t, 1) * begin \
-            + jnp.heaviside(t - t1, 1) * jnp.heaviside(t2 - t, 1) * middle \
-            + jnp.heaviside(t - t2, 1) * end
-
-    return taper
-
-def get_tidal_amplitude(x: Array, theta: Array, kappa: float, distance: float =1):
-    """Get the tidal amplitude corrections as given in equation (24) of the NRTidal paper.
-
-    Args:
-        x (Array): Angular frequency, in particular, x = (pi M f)^(2/3)
-        theta (Array): Intrinsic parameters (mass1, mass2, chi1, chi2, lambda1, lambda2)
-        kappa (float): Tidal parameter kappa
-        distance (float, optional): Distance to the source in Mpc.
-
-    Returns:
-        Array: Tidal amplitude corrections A_T from NRTidalv2 paper.
-    """
-    
-    # Mass variables
-    m1, m2, _, _, _, _ = theta 
-    M = m1 + m2
-    m1_s = m1 * gt
-    m2_s = m2 * gt
-    
-    # Convert distance to meters
-    distance *= m_per_Mpc
-    
-    # Pade approximant
-    n1   = 4.157407407407407
-    n289 = 2519.111111111111
-    d    = 13477.8073677
-    num = 1.0 + n1 * x + n289 * x ** 2.89
-    den = 1.0 + d * x ** 4.
-    poly = num / den
-    
-    # Prefactors are taken from lal source code
-    prefac = - 9.0 * kappa
-    ampT = prefac * x ** (13. / 4.) * poly
-    amp0 = get_amp0_lal(M, distance)
-    ampT *= amp0 * 2 * jnp.sqrt(PI / 5)
-    
-    return ampT 
 
 def _get_spin_induced_quadrupole_phase_coeff(lambda_: float, mass: float) -> float:
     """Compute the quantity from equation (11) from http://arxiv.org/abs/1503.05405
