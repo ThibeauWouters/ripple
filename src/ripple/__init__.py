@@ -3,14 +3,14 @@ Core utilities for calculating properties of binaries, sampling their parameters
 and comparing waveforms.
 """
 
-# Note that we turned this off to test float32 capabilities
-# from jax.config import config
-# config.update("jax_enable_x64", True)
+from jax.config import config
+config.update("jax_enable_x64", True)
 
 from math import pi
 from typing import Callable, Optional, Tuple
 import warnings
 
+import jax
 from jax import random
 import jax.numpy as jnp
 
@@ -31,8 +31,14 @@ def Mc_eta_to_ms(m):
     """
     Mchirp, eta = m
     M = Mchirp / (eta ** (3 / 5))
-    m2 = (M - jnp.sqrt(M**2 - 4 * M**2 * eta)) / 2
-    m1 = M - m2
+    m2_tmp = (M - jnp.sqrt(M**2 - 4 * M**2 * eta)) / 2
+    m1_tmp = M - m2_tmp 
+    # Decide on m1, m2 based on value
+    m1, m2 = jax.lax.cond(m1_tmp > m2_tmp,
+                          lambda x: (x, m2_tmp),
+                          lambda x: (m2_tmp, x),
+                          operand=m1_tmp
+                          )
     return m1, m2
 
 
