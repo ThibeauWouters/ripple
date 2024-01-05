@@ -65,7 +65,7 @@ def get_jitted_waveform(IMRphenom: str, fs: np.array, f_ref: float):
         # Get jitted version (note, use IMRPhenomD as underlying waveform model)
         @jax.jit
         def waveform(theta):
-            hp, _ = waveform_generator(fs, theta, f_ref, IMRphenom="IMRPhenomD")
+            hp, _ = waveform_generator(fs, theta, f_ref)
             return hp
         
     elif IMRphenom == "TaylorF2":

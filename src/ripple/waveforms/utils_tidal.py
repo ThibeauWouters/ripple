@@ -82,7 +82,10 @@ def _get_quadparam_octparam_high(lambda_: float) -> tuple[float, float]:
     oct_coeffs = [0.003131, 2.071, -0.7152, 0.2458, -0.03309]
         
     # High lambda (above 1): use universal relation
+    print("Calling log lambda on: ", lambda_)
     log_lambda = jnp.log(lambda_)
+    print("log_lambda")
+    print(log_lambda)
     log_quadparam = universal_relation(quad_coeffs, log_lambda)
     
     # Compute octparam:
