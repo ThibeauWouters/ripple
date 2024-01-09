@@ -31,14 +31,8 @@ def Mc_eta_to_ms(m):
     """
     Mchirp, eta = m
     M = Mchirp / (eta ** (3 / 5))
-    m2_tmp = (M - jnp.sqrt(M**2 - 4 * M**2 * eta)) / 2
-    m1_tmp = M - m2_tmp 
-    # Decide on m1, m2 based on value
-    m1, m2 = jax.lax.cond(m1_tmp > m2_tmp,
-                          lambda x: (x, m2_tmp),
-                          lambda x: (m2_tmp, x),
-                          operand=m1_tmp
-                          )
+    m2 = (M - jnp.sqrt(M**2 - 4 * M**2 * eta)) / 2
+    m1 = M - m2
     return m1, m2
 
 
@@ -55,12 +49,7 @@ def ms_to_Mc_eta(m):
     """
     m1, m2 = m
     mc, eta = (m1 * m2) ** (3 / 5) / (m1 + m2) ** (1 / 5), m1 * m2 / (m1 + m2) ** 2
-    # If eta is equal to or greater than 0.25, nudge it down
-    eta = jax.lax.cond(eta >= 0.25,
-                       lambda x: x - 1e-6,
-                       lambda x: x,
-                       operand=eta
-                       )
+    eta = jnp.clip(eta, 0, 0.25 - 1e-8)
     return mc, eta
 
 # TODO in code below, reduce copy-paste
@@ -167,6 +156,10 @@ def lambda_tildes_to_lambdas(params: Array):
     
     lambda_tilde, delta_lambda_tilde, mass_1, mass_2 = params
     
+    # jax.debug.print("lambda tildes in conversion fn:")
+    # jax.debug.print(str(lambda_tilde))
+    # jax.debug.print(str(delta_lambda_tilde))
+    
     _, eta = ms_to_Mc_eta(jnp.array([mass_1, mass_2]))
     coefficient_1 = (1 + 7 * eta - 31 * eta**2)
     coefficient_2 = (1 - 4 * eta)**0.5 * (1 + 9 * eta - 11 * eta**2)
@@ -184,6 +177,10 @@ def lambda_tildes_to_lambdas(params: Array):
          2 * delta_lambda_tilde * (coefficient_1 + coefficient_2)) \
         / ((coefficient_1 - coefficient_2) * (coefficient_3 + coefficient_4) -
            (coefficient_1 + coefficient_2) * (coefficient_3 - coefficient_4))
+        
+    # jax.debug.print("lambdas in conversion fn:")
+    # jax.debug.print(str(lambda_1))
+    # jax.debug.print(str(lambda_2))
 
     return lambda_1, lambda_2
 

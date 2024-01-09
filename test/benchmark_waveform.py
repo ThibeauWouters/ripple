@@ -10,10 +10,12 @@ import numpy as np
 import jax
 import jax.numpy as jnp
 import jaxlib
-# Choose device here
-# jax.config.update("jax_platform_name", "gpu")
-jax.config.update("jax_platform_name", "cpu")
-print(jax.devices())
+## Choose GPU
+chosen_device = jax.devices()[1]
+jax.config.update("jax_platform_name", "gpu")
+jax.config.update("jax_default_device", chosen_device)
+## Choose CPU
+# jax.config.update("jax_platform_name", "cpu")
 import matplotlib.pyplot as plt
 import pandas as pd
 from tqdm import tqdm
@@ -421,9 +423,16 @@ def benchmark_speed(IMRphenom: str, n: int = 10_000):
     
     print("Benchmarking . . .")
     start = time.time()
-    func(theta_ripple)[0].block_until_ready()
+    # result = func(theta_ripple)[0].block_until_ready()
+    result = func(theta_ripple).block_until_ready()
     end = time.time()
     print("Vmapped ripple waveform call takes: %.6f ms" % ((end - start) * 1000 / n))
+    
+    print("Checking for NaNs or infs in results")
+    if jnp.isnan(result).any():
+        print("NaNs in result")
+    if jnp.isinf(result).any():
+        print("infs in result")
     
     
 def benchmark_speed_lal(IMRphenom, n: int = 10_000):

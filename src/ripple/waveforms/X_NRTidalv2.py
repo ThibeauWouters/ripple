@@ -3,10 +3,10 @@
 import jax
 import jax.numpy as jnp
 
-### DEBUG
-jax.config.update("jax_debug_nans", True)
-jax.config.update("jax_disable_jit", True)
-### DEBUG
+# ### DEBUG
+# jax.config.update("jax_debug_nans", True)
+# jax.config.update("jax_disable_jit", True)
+# ### DEBUG
 
 from ..constants import EulerGamma, gt, m_per_Mpc, C, PI, TWO_PI, MSUN, MRSUN
 from ..typing import Array
@@ -171,29 +171,36 @@ def get_tidal_amplitude(fgrid: Array, theta: Array, f_ref: float, distance: floa
     
     # Compute the dimensionless merger frequency (Mf) for the Planck taper filtering
     f_merger = _get_f_merger(theta)
-    # The derivative of the Planck taper filter can return NaN in some points because of numerical issues, we declare it explicitly to avoid the issue
-    @jax.custom_jvp
-    def planck_taper_fun(x, y):
-        # Terminate the waveform at 1.2 times the merger frequency
-        a=1.2
-        yp = a*y
-        planck_taper = jnp.where(x < y, 1., jnp.where(x > yp, 0., 1. - 1./(jnp.exp((yp - y)/(x - y) + (yp - y)/(x - yp)) + 1.)))
+    # @jax.custom_jvp
+    def planck_taper_fun(t, t1):
+        # # Terminate the waveform at 1.2 times the merger frequency
+        # yp = 1.2*y
+        # planck_taper = jnp.where(x < y, 1., jnp.where(x > yp, 0., 1. - 1./(jnp.exp((yp - y)/(x - y) + (yp - y)/(x - yp)) + 1.)))
+        
+            # Planck taper consists of three parts:
+        begin = jnp.zeros_like(t)
+        end = jnp.ones_like(t)
+        t2 = 1.2 * t1
+        middle = 1. / (jnp.exp((t2 - t1)/(t - t1) + (t2 - t1)/(t - t2)) + 1.)
 
-        return planck_taper
+        # Build the taper from the three parts with step functions
+        planck_taper = jnp.heaviside(t1 - t, 1) * begin \
+                + jnp.heaviside(t - t1, 1) * jnp.heaviside(t2 - t, 1) * middle \
+                + jnp.heaviside(t - t2, 1) * end
 
-    def planck_taper_fun_der(x,y):
-        # Terminate the waveform at 1.2 times the merger frequency
-        a=1.2
-        yp = a*y
-        tangent_out = jnp.where(x < y, 0., jnp.where(x > yp, 0., jnp.exp((yp - y)/(x - y) + (yp - y)/(x - yp))*((-1.+a)/(x-y) + (-1.+a)/(x-yp) + (-y+yp)/((x-y)**2) + 1.2*(-y+yp)/((x-yp)**2))/((jnp.exp((yp - y)/(x - y) + (yp - y)/(x - yp)) + 1.)**2)))
-        tangent_out = jnp.nan_to_num(tangent_out)
-        return tangent_out
+        return 1.0 - planck_taper
+
+    ### TODO check if Planck taper is OK or not
+    # def planck_taper_fun_der(x,y):
+    #     # Terminate the waveform at 1.2 times the merger frequency
+    #     a=1.2
+    #     yp = a*y
+    #     tangent_out = jnp.where(x < y, 0., jnp.where(x > yp, 0., jnp.exp((yp - y)/(x - y) + (yp - y)/(x - yp))*((-1.+a)/(x-y) + (-1.+a)/(x-yp) + (-y+yp)/((x-y)**2) + 1.2*(-y+yp)/((x-yp)**2))/((jnp.exp((yp - y)/(x - y) + (yp - y)/(x - yp)) + 1.)**2)))
+    #     tangent_out = jnp.nan_to_num(tangent_out)
+    #     return tangent_out
+    # planck_taper_fun.defjvps(None, lambda y_dot, primal_out, x, y: planck_taper_fun_der(x,y) * y_dot)
     
-    planck_taper_fun.defjvps(None, lambda y_dot, primal_out, x, y: planck_taper_fun_der(x,y) * y_dot)
-    # Now compute tha Planck taper series
-    # This filter causes big numerical issues at the cut when computing derivatives and the last element is very small but not 0. We fix it "by hand" with this nan_to_num which assigns 0 in place of NaN. We performed extensive checks and this does not affect any other part of the computation, only the very last point of the frequency grid in some random and rare cases.
     planck_taper = jnp.nan_to_num(planck_taper_fun(fgrid, f_merger))
-    
     amp0 = jnp.where(eta > 0, jnp.sqrt(2.0*eta/3.0), 0.)*(PI**(-1./6.))
     amp = amp0_lal*(amp0*(fgrid**(-7./6.))*amplitudeIMR + 2*jnp.sqrt(PI/5.)*ampTidal)*planck_taper
     
@@ -412,7 +419,7 @@ def _gen_NRTidalv2(f: Array, theta_intrinsic: Array, theta_extrinsic: Array, f_r
 
     return h0
 
-def gen_NRTidalv2(f: Array, params: Array, f_ref: float, use_lambda_tildes: bool=True) -> Array:
+def gen_NRTidalv2(f: Array, params: Array, f_ref: float, use_lambda_tildes: bool=False) -> Array:
     """
     Generate NRTidalv2 frequency domain waveform following NRTidalv2 paper.
     vars array contains both intrinsic and extrinsic variables
@@ -440,11 +447,7 @@ def gen_NRTidalv2(f: Array, params: Array, f_ref: float, use_lambda_tildes: bool
     
     # Get component masses
     m1, m2 = Mc_eta_to_ms(jnp.array([params[0], params[1]]))
-    print("lambda tilde")
-    print(params[4])
     
-    print("delta lambda tilde")
-    print(params[5])
     # Internally, we use lambda_1, lambda_2 for tidal parameters, but samplers might use lambda_tildes
     if use_lambda_tildes:
         lambda1, lambda2 = lambda_tildes_to_lambdas(jnp.array([params[4], params[5], m1, m2]))
@@ -454,17 +457,11 @@ def gen_NRTidalv2(f: Array, params: Array, f_ref: float, use_lambda_tildes: bool
     theta_intrinsic = jnp.array([m1, m2, params[2], params[3], lambda1, lambda2])
     theta_extrinsic = jnp.array([params[6], params[7], params[8]])
     
-    print("lambda1")
-    print(lambda1)
-    
-    print("lambda2")
-    print(lambda2)
-
     # Use BBH waveform and add tidal corrections
     return _gen_NRTidalv2(f, theta_intrinsic, theta_extrinsic, f_ref)
 
 
-def gen_NRTidalv2_hphc(f: Array, params: Array, f_ref: float, use_lambda_tildes: bool=True):
+def gen_NRTidalv2_hphc(f: Array, params: Array, f_ref: float, use_lambda_tildes: bool=False):
     """
     vars array contains both intrinsic and extrinsic variables
     

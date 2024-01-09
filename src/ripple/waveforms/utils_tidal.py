@@ -5,6 +5,10 @@ import jax.numpy as jnp
 from ..typing import Array
 from ..constants import EulerGamma, gt, m_per_Mpc, C, PI, TWO_PI, MSUN, MRSUN, GMsun_over_c2_Gpc, GMsun_over_c3
 from .IMRPhenomD_utils import get_fRD_fdamp
+# ### DEBUG
+# jax.config.update("jax_debug_nans", True)
+# jax.config.update("jax_disable_jit", True)
+# ### DEBUG
 
 def universal_relation(coeffs: Array, x: float):
     """Applies the general formula of a universal relationship, which is a quartic polynomial.
@@ -18,6 +22,7 @@ def universal_relation(coeffs: Array, x: float):
     """
     return coeffs[0] + coeffs[1] * x + coeffs[2] * (x ** 2) + coeffs[3] * (x ** 3) + coeffs[4] * (x ** 4)
 
+
 def get_quadparam_octparam(lambda_: float) -> tuple[float, float]:
     """Compute the quadrupole and octupole parameter by checking the value of lambda and choosing the right subroutine.
     If lambda is smaller than 1, we make use of the fit formula as given by the LAL source code. Otherwise, we rely on the equations of
@@ -30,71 +35,101 @@ def get_quadparam_octparam(lambda_: float) -> tuple[float, float]:
         tuple[float, float]: Quadrupole and octupole parameters.
     """
     
-    # Check if lambda is low or not, and choose right subroutine
-    is_low_lambda = lambda_ < 1
-    return jax.lax.cond(is_low_lambda, _get_quadparam_octparam_low, _get_quadparam_octparam_high, lambda_)
+    # # Avoid NaNs: make sure the lambda used here is never negative (https://jax.readthedocs.io/en/latest/faq.html#gradients-contain-nan-where-using-where)
+    # lambda_ = jnp.where(lambda_ < 1e-10, 1e-10, lambda_)
+    
+    # jax.debug.print("lambda in get_quadparam_octparam:")
+    # jax.debug.print(str(lambda_))
+    
+    # jax.debug.print("shape lambda in get_quadparam_octparam:")
+    # shape = jnp.shape(lambda_)
+    # jax.debug.print(str(shape))
+    
+    # jax.debug.print("negative lambda in get_quadparam_octparam:")
+    # shape = jnp.shape(lambda_)
+    # is_negative = jnp.any(lambda_ < 0.)
+    # jax.debug.print(str(is_negative))
+    # jax.debug.print("is negative lambda: sum")
+    # is_negative_sum = jnp.sum(is_negative).astype(float)
+    # jax.debug.print(str(is_negative_sum))
+    
+    # jax.debug.print("iterating over")
+    # if not isinstance(is_negative_sum, float):
+    #     for element in is_negative:
+    #         jax.debug.print(str(element))
 
-def _get_quadparam_octparam_low(lambda_: float) -> tuple[float, float]:
-    """
-    Computes quadparameter, see eq (28) of NRTidalv2 paper and also LALSimUniversalRelations.c of lalsuite
+    # TODO this is gwfast implementation, make sure is OK and refactor more nicely
+    quadparam = jnp.where(lambda_ < 1., 
+                          1. + lambda_*(0.427688866723244 + lambda_*(-0.324336526985068 + lambda_*0.1107439432180572)), 
+                          jnp.exp(0.1940 + 0.09163 * jnp.log(lambda_) + 0.04812 * jnp.log(lambda_) * jnp.log(lambda_) -4.283e-3 * jnp.log(lambda_) * jnp.log(lambda_) * jnp.log(lambda_) + 1.245e-4 * jnp.log(lambda_) * jnp.log(lambda_) * jnp.log(lambda_) * jnp.log(lambda_)))
     
-    Version for lambdas smaller than 1.
+    octparam = jnp.exp(0.003131 + 2.071 * jnp.log(quadparam)  - 0.7152 * jnp.log(quadparam) * jnp.log(quadparam) + 0.2458 * jnp.log(quadparam) * jnp.log(quadparam) * jnp.log(quadparam) - 0.03309 * jnp.log(quadparam) * jnp.log(quadparam) * jnp.log(quadparam) * jnp.log(quadparam))
     
-    LALsuite has an extension where a separate formula is used for lambdas smaller than one, and another formula is used for lambdas larger than one.
-    Args:
-        lambda_: tidal deformability
-
-    Returns:
-        quadparam: Quadrupole coefficient called C_Q in NRTidalv2 paper
-        octparam: Octupole coefficient called C_Oc in NRTidalv2 paper
-    """
-    
-    # Coefficients of universal relation
-    oct_coeffs = [0.003131, 2.071, -0.7152, 0.2458, -0.03309]
-    
-    # Extension of the fit in the range lambda2 = [0,1.] so that the BH limit is enforced, lambda2bar->0 gives quadparam->1. and the junction with the universal relation is smooth, of class C2
-    quadparam = 1. + lambda_ * (0.427688866723244 + lambda_ * (-0.324336526985068 + lambda_ * 0.1107439432180572))
-    log_quadparam = jnp.log(quadparam)
-        
-    # Compute octparam:
-    log_octparam = universal_relation(oct_coeffs, log_quadparam)
-    octparam = jnp.exp(log_octparam)
-
     return quadparam, octparam
+    
+    
+# def _get_quadparam_octparam_low(lambda_: float) -> tuple[float, float]:
+#     """
+#     Computes quadparameter, see eq (28) of NRTidalv2 paper and also LALSimUniversalRelations.c of lalsuite
+    
+#     Version for lambdas smaller than 1.
+    
+#     LALsuite has an extension where a separate formula is used for lambdas smaller than one, and another formula is used for lambdas larger than one.
+#     Args:
+#         lambda_: tidal deformability
 
-def _get_quadparam_octparam_high(lambda_: float) -> tuple[float, float]:
-    """
-    Computes quadparameter, see eq (28) of NRTidalv2 paper and also LALSimUniversalRelations.c of lalsuite
+#     Returns:
+#         quadparam: Quadrupole coefficient called C_Q in NRTidalv2 paper
+#         octparam: Octupole coefficient called C_Oc in NRTidalv2 paper
+#     """
     
-    Version for lambdas greater than 1.
+#     # Coefficients of universal relation
+#     oct_coeffs = [0.003131, 2.071, -0.7152, 0.2458, -0.03309]
     
-    LALsuite has an extension where a separate formula is used for lambdas smaller than one, and another formula is used for lambdas larger than one.
-    Args:
-        lambda_: tidal deformability
-
-    Returns:
-        quadparam: Quadrupole coefficient called C_Q in NRTidalv2 paper
-        octparam: Octupole coefficient called C_Oc in NRTidalv2 paper
-    """
-    
-    # Coefficients of universal relation
-    quad_coeffs = [0.1940, 0.09163, 0.04812, -4.283e-3, 1.245e-4]
-    oct_coeffs = [0.003131, 2.071, -0.7152, 0.2458, -0.03309]
+#     # Extension of the fit in the range lambda2 = [0,1.] so that the BH limit is enforced, lambda2bar->0 gives quadparam->1. and the junction with the universal relation is smooth, of class C2
+#     quadparam = 1. + lambda_ * (0.427688866723244 + lambda_ * (-0.324336526985068 + lambda_ * 0.1107439432180572))
+#     log_quadparam = jnp.log(quadparam)
         
-    # High lambda (above 1): use universal relation
-    print("Calling log lambda on: ", lambda_)
-    log_lambda = jnp.log(lambda_)
-    print("log_lambda")
-    print(log_lambda)
-    log_quadparam = universal_relation(quad_coeffs, log_lambda)
+#     # Compute octparam:
+#     log_octparam = universal_relation(oct_coeffs, log_quadparam)
+#     octparam = jnp.exp(log_octparam)
+
+#     return quadparam, octparam
+
+# def _get_quadparam_octparam_high(lambda_: float) -> tuple[float, float]:
+#     """
+#     Computes quadparameter, see eq (28) of NRTidalv2 paper and also LALSimUniversalRelations.c of lalsuite
     
-    # Compute octparam:
-    log_octparam = universal_relation(oct_coeffs, log_quadparam)
+#     Version for lambdas greater than 1.
+    
+#     LALsuite has an extension where a separate formula is used for lambdas smaller than one, and another formula is used for lambdas larger than one.
+#     Args:
+#         lambda_: tidal deformability
 
-    quadparam = jnp.exp(log_quadparam)
-    octparam = jnp.exp(log_octparam)
+#     Returns:
+#         quadparam: Quadrupole coefficient called C_Q in NRTidalv2 paper
+#         octparam: Octupole coefficient called C_Oc in NRTidalv2 paper
+#     """
+    
+#     # Coefficients of universal relation
+#     quad_coeffs = [0.1940, 0.09163, 0.04812, -4.283e-3, 1.245e-4]
+#     oct_coeffs = [0.003131, 2.071, -0.7152, 0.2458, -0.03309]
+        
+#     # High lambda (above 1): use universal relation
+#     jax.debug.print("lambda in high fn:")
+#     jax.debug.print(str(lambda_))
+#     log_lambda = jnp.log(lambda_)
+#     jax.debug.print("log_lambda")
+#     jax.debug.print(str(log_lambda))
+#     log_quadparam = universal_relation(quad_coeffs, log_lambda)
+    
+#     # Compute octparam:
+#     log_octparam = universal_relation(oct_coeffs, log_quadparam)
 
-    return quadparam, octparam
+#     quadparam = jnp.exp(log_quadparam)
+#     octparam = jnp.exp(log_octparam)
+
+#     return quadparam, octparam
 
 def get_kappa(theta: Array) -> float:
     """Computes the tidal deformability parameter kappa according to equation (8) of the NRTidalv2 paper.
