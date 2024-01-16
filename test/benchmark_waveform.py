@@ -10,10 +10,11 @@ import numpy as np
 import jax
 import jax.numpy as jnp
 import jaxlib
-## Choose GPU
-chosen_device = jax.devices()[1]
-jax.config.update("jax_platform_name", "gpu")
-jax.config.update("jax_default_device", chosen_device)
+### NOTE the following only works if a GPU is available
+# ## Choose GPU
+# chosen_device = jax.devices()[1]
+# jax.config.update("jax_platform_name", "gpu")
+# jax.config.update("jax_default_device", chosen_device)
 ## Choose CPU
 # jax.config.update("jax_platform_name", "cpu")
 import matplotlib.pyplot as plt
@@ -126,6 +127,9 @@ def random_match(n, IMRphenom = "IMRPhenomD_NRTidalv2"):
     fs = get_freqs(f_l, f_u, f_sampling, T)
     df = fs[1] - fs[0]
     
+    print("df")
+    print(df)
+    
     waveform = get_jitted_waveform(IMRphenom, fs, f_ref)
     is_tidal = check_is_tidal(IMRphenom)
 
@@ -152,15 +156,14 @@ def random_match(n, IMRphenom = "IMRPhenomD_NRTidalv2"):
 
 
 def non_precessing_matchmaking(
-    IMRphenom, f_l, f_u, df, fs, waveform, f_ASD, ASD, thetas, matches, fixed_extrinsic = True, fixed_intrinsic = False,
+    IMRphenom, f_l, f_u, df, fs, waveform, f_ASD, ASD, thetas, matches, fixed_extrinsic = False, fixed_intrinsic = False,
 ):
     
     is_tidal = check_is_tidal(IMRphenom)
     
     # These ranges are taken from: https://wiki.ligo.org/CBC/Waveforms/WaveformTable
     m_l, m_u = 0.5, 3.0
-    chi_l, chi_u = -1, 1
-    chi_l, chi_u = -0.6, 0.6
+    chi_l, chi_u = -0.05, 0.05
     lambda_l, lambda_u = 0, 5000
 
     m1 = np.random.uniform(m_l, m_u)
@@ -252,10 +255,17 @@ def non_precessing_matchmaking(
     
     # Get the ripple waveform
     Mc, eta = ms_to_Mc_eta(jnp.array([theta[0], theta[1]]))
-    lambda_tilde, delta_lambda_tilde = lambdas_to_lambda_tildes(jnp.array([l1, l2, m1, m2]))
+    
+    ## Convert the lambda parameters
+    # lambda_tilde, delta_lambda_tilde = lambdas_to_lambda_tildes(jnp.array([l1, l2, m1, m2]))
 
+    # theta_ripple = jnp.array(
+    #     [Mc, eta, theta[2], theta[3], lambda_tilde, delta_lambda_tilde, dist_mpc, tc, phi_ref, inclination]
+    # )
+
+    # TODO improve this implementation
     theta_ripple = jnp.array(
-        [Mc, eta, theta[2], theta[3], lambda_tilde, delta_lambda_tilde, dist_mpc, tc, phi_ref, inclination]
+        [Mc, eta, theta[2], theta[3], l1, l2, dist_mpc, tc, phi_ref, inclination]
     )
     
     # If not tidal, remove lambda parameters
@@ -582,13 +592,13 @@ if __name__ == "__main__":
     check_speed = False
     check_speed_lal = False
     
-    approximant = "IMRPhenomD_NRTidalv2" # "TaylorF2", "IMRPhenomD_NRTidalv2" or "IMRPhenomD"
+    approximant = "IMRPhenomD" # "TaylorF2", "IMRPhenomD_NRTidalv2" or "IMRPhenomD"
     print(f"Checking approximant {approximant}")
     
     ### Computing and reporting mismatches
     if check_mismatch:
         print("Checking mismatches wrt LAL")
-        df = random_match(1000, approximant)
+        df = random_match(10000, approximant)
         print("Done. The dataframe is:")
         print(df)
         
