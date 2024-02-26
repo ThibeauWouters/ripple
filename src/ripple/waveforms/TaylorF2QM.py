@@ -386,8 +386,9 @@ def _gen_TaylorF2(
     dEnergy = dETaN * v
     
     shft = 2 * PI * tc
-      
-    phasing += shft * f - 2.*phi_ref - ref_phasing
+    # Add spin-induced quadrupole moment
+    phase_qm = get_spin_induced_quadrupole_phase(v, theta_intrinsic)
+    phasing += shft * f - 2.*phi_ref - ref_phasing + phase_qm
     
     amp = amp0 * jnp.sqrt(-dEnergy/flux) * v
     

@@ -222,7 +222,7 @@ def _get_spin_induced_quadrupole_phase_coeff(lambda_: float, mass: float) -> flo
     
     # Auxiliary parameter:
     # TODO what if lambda is zero or negative?
-    x = jnp.log(lambda_ / (mass ** 5))
+    x = jnp.log(lambda_)
     coeffs = jnp.array([0.194, 0.0936, 0.0474, -4.21e-3, 1.23e-4])
     
     ln_a = universal_relation(coeffs, x)
@@ -234,13 +234,13 @@ def get_spin_induced_quadrupole_phase(v: Array, theta: Array) -> Array:
     """Computes the contribution to the phase from the spin-induced quadrupole moment
 
     Args:
-        x (Array): Array of velocities, that is, v = (pi M f)^(1/3)
+        v (Array): Array of velocities, that is, v = (pi M f)^(1/3)
         theta (Array): Array of parameters (m1, m2, chi1, chi2, lambda1, lambda2)   
 
     Returns:
         Array: Phase contribution from spin-induced quadrupole moment
     """
-    # See http://arxiv.org/abs/1503.05405, around eq (11)
+    # See http://arxiv.org/   abs/1503.05405, around eq (11)
     
     # Get parameters and auxiliary variables
     m1, m2, chi1, chi2, lambda1, lambda2 = theta 
