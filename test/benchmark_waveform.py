@@ -24,6 +24,7 @@ from ripple.constants import PI
 
 import lal
 import lalsimulation as lalsim
+import os
 
 jax.config.update("jax_enable_x64", True)
 
@@ -79,6 +80,15 @@ def get_jitted_waveform(IMRphenom: str, fs: np.array, f_ref: float):
             hp, _ = waveform_generator(fs, theta, f_ref)
             return hp
     
+    elif IMRphenom == "TaylorF2QM":
+        #Import the waveform
+        from ripple.waveforms.TaylorF2QM import gen_TaylorF2_hphc as waveform_generator
+        #Get jitted version
+        @jax.jit
+        def waveform(theta):
+            hp, _ = waveform_generator(fs, theta, f_ref) #we dont care about the cross polarization here 
+            return hp
+    
     else:
         raise ValueError("IMRPhenom not recognized ")
     
@@ -97,8 +107,7 @@ def get_freqs(f_l, f_u, f_sampling, T):
 #########################
 ### Match against LAL ###
 #########################
-
-def random_match(n: int, bounds: dict, IMRphenom: str = "IMRPhenomD_NRTidalv2", outdir: str = None, psd_file: str = "psds/psd.txt"):
+def random_match(n: int, bounds: dict, IMRphenom: str, outdir: str = None, psd_file: str = "test/psds/psd.txt"):
     """
     Generates random waveform match scores between LAL and ripple.
     
@@ -158,9 +167,8 @@ def random_match(n: int, bounds: dict, IMRphenom: str = "IMRPhenomD_NRTidalv2", 
 def non_precessing_matchmaking(
     bounds, IMRphenom, f_l, f_u, df, fs, waveform, f_ASD, ASD, thetas, matches, fixed_extrinsic = False, fixed_intrinsic = False,
 ):
-    
+    print("HIER:", bounds)
     is_tidal = check_is_tidal(IMRphenom)
-    
     m1 = np.random.uniform(bounds["m"][0], bounds["m"][1])
     m2 = np.random.uniform(bounds["m"][0], bounds["m"][1])
     s1 = np.random.uniform(bounds["chi"][0], bounds["chi"][1])
@@ -573,13 +581,14 @@ if __name__ == "__main__":
     check_speed = False
     check_speed_lal = False
     
-    approximant = "IMRPhenomD_NRTidalv2" # "TaylorF2", "IMRPhenomD_NRTidalv2" or "IMRPhenomD"
+    approximant = "TaylorF2QM"
     print(f"Checking approximant {approximant}")
     
     ### Computing and reporting mismatches
     if check_mismatch:
         print("Checking mismatches wrt LAL")
-        df = random_match(1000, approximant)
+        bounds = [] #CHECK WHAT BOUNDS IS SUPPOSED TO BE
+        df = random_match(1000, bounds, approximant)
         print("Done. The dataframe is:")
         print(df)
         
