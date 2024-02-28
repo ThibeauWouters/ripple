@@ -208,6 +208,8 @@ def non_precessing_matchmaking(
         l2 = 0.0
     
     # Get approximant for lal
+    if IMRphenom == "TaylorF2QM":
+        IMRphenom = "TaylorF2"
     approximant = lalsim.SimInspiralGetApproximantFromString(IMRphenom)
     
     f_ref = f_l
@@ -580,7 +582,7 @@ if __name__ == "__main__":
     check_speed = False
     check_speed_lal = False
     
-    approximant = "TaylorF2"
+    approximant = "TaylorF2QM"
     print(f"Checking approximant {approximant}")
     
     ### Computing and reporting mismatches
