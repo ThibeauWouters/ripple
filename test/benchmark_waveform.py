@@ -34,7 +34,7 @@ jax.config.update("jax_enable_x64", True)
 
 def check_is_tidal(IMRphenom: str):
     # Check if the given waveform is supported:
-    bns_waveforms = ["IMRPhenomD_NRTidalv2", "TaylorF2"]
+    bns_waveforms = ["IMRPhenomD_NRTidalv2", "TaylorF2", "TaylorF2QM"]
     bbh_waveforms = ["IMRPhenomD"]
     
     if IMRphenom in bns_waveforms:
