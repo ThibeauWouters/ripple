@@ -107,7 +107,7 @@ def get_freqs(f_l, f_u, f_sampling, T):
 #########################
 ### Match against LAL ###
 #########################
-def random_match(n: int, bounds: dict, IMRphenom: str, outdir: str = None, psd_file: str = "test/psds/psd.txt"):
+def random_match(n: int, bounds: dict, IMRphenom: str = "TaylorF2QM", outdir: str = "/Users/marlindedrent/Documents/GitHub/BONZ/ripple/test/", psd_file: str = "test/psds/psd.txt"):
     """
     Generates random waveform match scores between LAL and ripple.
     
@@ -167,7 +167,6 @@ def random_match(n: int, bounds: dict, IMRphenom: str, outdir: str = None, psd_f
 def non_precessing_matchmaking(
     bounds, IMRphenom, f_l, f_u, df, fs, waveform, f_ASD, ASD, thetas, matches, fixed_extrinsic = False, fixed_intrinsic = False,
 ):
-    print("HIER:", bounds)
     is_tidal = check_is_tidal(IMRphenom)
     m1 = np.random.uniform(bounds["m"][0], bounds["m"][1])
     m2 = np.random.uniform(bounds["m"][0], bounds["m"][1])
@@ -581,13 +580,17 @@ if __name__ == "__main__":
     check_speed = False
     check_speed_lal = False
     
-    approximant = "TaylorF2QM"
+    approximant = "TaylorF2"
     print(f"Checking approximant {approximant}")
     
     ### Computing and reporting mismatches
     if check_mismatch:
         print("Checking mismatches wrt LAL")
-        bounds = [] #CHECK WHAT BOUNDS IS SUPPOSED TO BE
+        bounds = {"m": [0.5, 3.0],
+          "chi": [-1, 1],
+          "lambda": [0, 5000],
+          "d_L": [1, 400]
+        }
         df = random_match(1000, bounds, approximant)
         print("Done. The dataframe is:")
         print(df)
