@@ -588,8 +588,8 @@ if __name__ == "__main__":
     ### Computing and reporting mismatches
     if check_mismatch:
         print("Checking mismatches wrt LAL")
-        bounds = {"m": [2.0, 3.0],
-          "chi": [-0.5, 0.5],
+        bounds = {"m": [0.5, 3.0],
+          "chi": [0.01, 0.01],
           "lambda": [0, 5000],
           "d_L": [1, 400]
         }
