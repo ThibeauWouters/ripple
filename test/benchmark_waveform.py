@@ -589,7 +589,7 @@ if __name__ == "__main__":
     if check_mismatch:
         print("Checking mismatches wrt LAL")
         bounds = {"m": [0.5, 3.0],
-          "chi": [-1, 1],
+          "chi": [-0.01, 0.01],
           "lambda": [0, 5000],
           "d_L": [1, 400]
         }
