@@ -591,7 +591,7 @@ if __name__ == "__main__":
         print("Checking mismatches wrt LAL")
         bounds = {"m": [0.5, 3.0],
           "chi": [-0.01, 0.01],
-          "lambda": [0, 1e6],
+          "lambda": [0, 1e7],
           "d_L": [1, 400]
         }
         df = random_match(1000, bounds, approximant)
