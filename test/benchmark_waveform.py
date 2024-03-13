@@ -582,15 +582,16 @@ if __name__ == "__main__":
     check_speed = False
     check_speed_lal = False
     
-    approximant = "TaylorF2QM"
+    approximant = "TaylorF2"
+    #approximant = "TaylorF2QM"
     print(f"Checking approximant {approximant}")
     
     ### Computing and reporting mismatches
     if check_mismatch:
         print("Checking mismatches wrt LAL")
         bounds = {"m": [0.5, 3.0],
-          "chi": [0.01, 0.01],
-          "lambda": [0, 5000],
+          "chi": [-0.01, 0.01],
+          "lambda": [0, 1e6],
           "d_L": [1, 400]
         }
         df = random_match(1000, bounds, approximant)
