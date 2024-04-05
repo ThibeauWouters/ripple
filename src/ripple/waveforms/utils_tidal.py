@@ -234,10 +234,10 @@ def _get_spin_induced_quadrupole_phase_coeff(lambda_: float, mass: float) -> flo
         float: a(m) 
     """
     is_low_lambda = lambda_ < 1
-    return jax.lax.cond(is_low_lambda, _get_spin_induced_quadrupole_phase_coeff_low, _get_spin_induced_quadrupole_phase_coeff_high, (lambda_, mass))
+    return jax.lax.cond(is_low_lambda, _get_spin_induced_quadrupole_phase_coeff_low, _get_spin_induced_quadrupole_phase_coeff_high, lambda_)
         
 
-def _get_spin_induced_quadrupole_phase_coeff_low(lambda_: float, mass: float) -> float:
+def _get_spin_induced_quadrupole_phase_coeff_low(lambda_: float) -> float:
     """Compute the quantity from equation (11) from http://arxiv.org/abs/1503.05405
 
     Args:
@@ -252,7 +252,7 @@ def _get_spin_induced_quadrupole_phase_coeff_low(lambda_: float, mass: float) ->
     return a
     
 
-def _get_spin_induced_quadrupole_phase_coeff_high(lambda_: float, mass: float) -> float:
+def _get_spin_induced_quadrupole_phase_coeff_high(lambda_: float) -> float:
     """Compute the quantity from equation (11) from http://arxiv.org/abs/1503.05405
 
     Args:
