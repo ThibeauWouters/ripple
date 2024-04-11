@@ -174,16 +174,18 @@ def gen_TaylorF2(f: Array, params: Array, f_ref: float, use_lambda_tildes: bool 
     Generate TaylorF2 frequency domain waveform 
     
     vars array contains both intrinsic and extrinsic variables
-    theta = [Mchirp, eta, chi1, chi2, lambda1, lambda1, D, tc, phic]
-    Mchirp: Chirp mass of the system [solar masses]
-    eta: Symmetric mass ratio [between 0.0 and 0.25]
-    chi1: Dimensionless aligned spin of the primary object [between -1 and 1]
-    chi2: Dimensionless aligned spin of the secondary object [between -1 and 1]
-    lambda tilde: Dimensionless tidal deformability first object [between 0 and 5000]
-    delta lamda tilde: Dimensionless tidal deformability second object [between 0 and 5000]
-    D: Luminosity distance to source [Mpc]
-    tc: Time of coalesence. This only appears as an overall linear in f contribution to the phase
-    phic: Phase of coalesence
+    theta = [Mchirp, eta, chi1, chi2, lambda1, lambda1, D, tc, phic, a1, a2]
+    Mchirp: Chirp mass of the system [solar masses]                                                 params[0]
+    eta: Symmetric mass ratio [between 0.0 and 0.25]                                                params[1]
+    chi1: Dimensionless aligned spin of the primary object [between -1 and 1]                       params[2]
+    chi2: Dimensionless aligned spin of the secondary object [between -1 and 1]                     params[3]
+    lambda tilde: Dimensionless tidal deformability first object [between 0 and 5000]               params[4]
+    delta lamda tilde: Dimensionless tidal deformability second object [between 0 and 5000]         params[5]
+    D: Luminosity distance to source [Mpc]                                                          params[6]
+    tc: Time of coalesence. This only appears as an overall linear in f contribution to the phase   params[7]
+    phic: Phase of coalesence                                                                       params[8]
+    a1: Quadrupole monopole parameter of the primary object                                         params[9]
+    a2: Quadrupole monopole parameter of the secondary object                                       params[10]
 
     f_ref: Reference frequency for the waveform
 
@@ -198,7 +200,7 @@ def gen_TaylorF2(f: Array, params: Array, f_ref: float, use_lambda_tildes: bool 
     else:
         lambda1, lambda2 = params[4], params[5]
     
-    theta_intrinsic = jnp.array([m1, m2, params[2], params[3], lambda1, lambda2])
+    theta_intrinsic = jnp.array([m1, m2, params[2], params[3], lambda1, lambda2, params[9], params[10]])
     theta_extrinsic = jnp.array([params[6], params[7], params[8]])
     
     h0 = _gen_TaylorF2(f, theta_intrinsic, theta_extrinsic, f_ref)
@@ -220,6 +222,8 @@ def gen_TaylorF2_hphc(f: Array, params: Array, f_ref: float, use_lambda_tildes: 
     D: Luminosity distance to source [Mpc]
     tc: Time of coalesence. This only appears as an overall linear in f contribution to the phase
     phic: Phase of coalesence
+    a1: Quadrupole monopole parameter of the primary object
+    a2: Quadrupole monopole parameter of the secondary object
     inclination: Inclination angle of the binary [between 0 and PI]
 
     f_ref: Reference frequency for the waveform
@@ -256,7 +260,9 @@ def _gen_TaylorF2(
             spin 1 z-component, 
             spin 2 z-component, 
             dimensionless tidal deformability 1, 
-            dimensionless tidal deformability 2
+            dimensionless tidal deformability 2,
+            quadrupole monopole parameter 1,
+            quadrupole monopole parameter 2
         theta_extrinsic (Array): Extrinsic parameters:
             dist_mpc, 
             tc, 
@@ -267,7 +273,7 @@ def _gen_TaylorF2(
         Array: GW strain, evaluated at given frequencies
     """
     
-    m1, m2, chi1, chi2, lambda1, lambda2 = theta_intrinsic
+    m1, m2, chi1, chi2, lambda1, lambda2, a1, a2 = theta_intrinsic
     dist_mpc, tc, phi_ref = theta_extrinsic
     m1_s = m1 * gt
     m2_s = m2 * gt
