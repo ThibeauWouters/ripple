@@ -250,7 +250,6 @@ def _get_spin_induced_quadrupole_phase_coeff_low(lambda_: float) -> float:
     coeffs = jnp.array([1.0, 0.32812816173650255, -0.16209486695933736, 0.05219418106960124, -0.006406318945489099])
     a = universal_relation(coeffs, lambda_)
     return a
-    
 
 def _get_spin_induced_quadrupole_phase_coeff_high(lambda_: float) -> float:
     """Compute the quantity from equation (11) from http://arxiv.org/abs/1503.05405
