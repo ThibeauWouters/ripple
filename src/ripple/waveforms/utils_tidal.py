@@ -292,9 +292,10 @@ def get_spin_induced_quadrupole_phase(v: Array, theta: Array) -> Array:
     X2 = m2 / M
     eta = m1 * m2 / (M ** 2.0)
     
-    # Compute the spin-induced quadrupole phase (NOTE this is assuming aligned spin)
-    #a1 = _get_spin_induced_quadrupole_phase_coeff(lambda1, m1)
-    #a2 = _get_spin_induced_quadrupole_phase_coeff(lambda2, m2)
+    # Compute the spin-induced quadrupole phase if it is not already given (NOTE this is assuming aligned spin)
+    if a1 == jnp.inf:
+        a1 = _get_spin_induced_quadrupole_phase_coeff(lambda1, m1)
+        a2 = _get_spin_induced_quadrupole_phase_coeff(lambda2, m2)
     sigma_qm_1 = 5 * a1 * (X1 ** 2) * chi1 ** 2
     sigma_qm_2 = 5 * a2 * (X2 ** 2) * chi2 ** 2
     

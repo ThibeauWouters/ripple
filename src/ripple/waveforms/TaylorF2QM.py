@@ -195,12 +195,20 @@ def gen_TaylorF2(f: Array, params: Array, f_ref: float, use_lambda_tildes: bool 
     """
     # Lets make this easier by starting in Mchirp and eta space
     m1, m2 = Mc_eta_to_ms(jnp.array([params[0], params[1]]))
+    #Check if the QM parameter is given, if not give it a default value (inf)
+    if len(params) == 10:
+        a1 = jnp.inf
+        a2 = jnp.inf
+    else:
+        a1 = params[9]
+        a2 = params[10]
+
     if use_lambda_tildes:
         lambda1, lambda2 = lambda_tildes_to_lambdas(jnp.array([params[4], params[5], m1, m2]))
     else:
         lambda1, lambda2 = params[4], params[5]
     
-    theta_intrinsic = jnp.array([m1, m2, params[2], params[3], lambda1, lambda2, params[9], params[10]])
+    theta_intrinsic = jnp.array([m1, m2, params[2], params[3], lambda1, lambda2, a1, a2])
     theta_extrinsic = jnp.array([params[6], params[7], params[8]])
     
     h0 = _gen_TaylorF2(f, theta_intrinsic, theta_extrinsic, f_ref)
