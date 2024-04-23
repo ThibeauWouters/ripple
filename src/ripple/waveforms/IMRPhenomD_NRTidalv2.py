@@ -7,7 +7,7 @@ import jax.numpy as jnp
 from ..constants import gt, m_per_Mpc, PI, TWO_PI, MRSUN
 from ..typing import Array
 from ripple import Mc_eta_to_ms, lambda_tildes_to_lambdas
-from .IMRPhenom_tidal_utils import get_quadparam_octparam, get_kappa
+from .IMRPhenom_tidal_utils import get_quadparam_octparam, get_kappa, get_tidal_phase, get_amp0_lal
 from ripple.waveforms.IMRPhenomD import Phase, Amp, get_IIb_raw_phase
 from .IMRPhenomD_utils import (
     get_coeffs,
@@ -84,21 +84,6 @@ get_planck_taper.defjvps(
 )
 
 
-def get_amp0_lal(M: float, distance: float):
-    """
-    Get the amp0 prefactor as defined in LAL in LALSimIMRPhenomD, line 331.
-
-    Args:
-        M (float): Total mass in solar masses
-        distance (float): Distance to the source in Mpc.
-
-    Returns:
-        float: amp0 from LAL.
-    """
-    amp0 = 2.0 * jnp.sqrt(5.0 / (64.0 * PI)) * M * MRSUN * M * gt / distance
-    return amp0
-
-
 def get_tidal_amplitude(x: Array, theta: Array, kappa: float, distance: float = 1):
     """
     Get the tidal amplitude corrections as given in equation (24) of the NRTidal paper.
@@ -140,66 +125,6 @@ def get_tidal_amplitude(x: Array, theta: Array, kappa: float, distance: float = 
 #############
 ### PHASE ###
 #############
-
-
-def get_tidal_phase(x: Array, theta: Array, kappa: float) -> Array:
-    """
-    Computes the tidal phase psi_T from equation (17) of the NRTidalv2 paper.
-
-    Args:
-        x (Array): Angular frequency, in particular, x = (pi M f)^(2/3)
-        theta (Array): Intrinsic parameters in the order (mass1, mass2, chi1, chi2, lambda1, lambda2)
-        kappa (float): Tidal parameter kappa, precomputed in the main function.
-
-    Returns:
-        Array: Tidal phase correction.
-    """
-
-    # Compute auxiliary quantities
-    m1, m2, _, _, _, _ = theta
-    m1_s = m1 * gt
-    m2_s = m2 * gt
-    M_s = m1_s + m2_s
-    # eta = m1_s * m2_s / (M_s**2.0)
-
-    X1 = m1_s / M_s
-    X2 = m2_s / M_s
-
-    # Compute powers
-    x_2 = x ** (2.0)
-    x_3 = x ** (3.0)
-    x_3over2 = x ** (3.0 / 2.0)
-    x_5over2 = x ** (5.0 / 2.0)
-
-    # Initialize the coefficients
-    c_Newt = 2.4375
-    n_1 = -12.615214237993088
-    n_3over2 = 19.0537346970349
-    n_2 = -21.166863146081035
-    n_5over2 = 90.55082156324926
-    n_3 = -60.25357801943598
-    d_1 = -15.111207827736678
-    d_3over2 = 22.195327350624694
-    d_2 = 8.064109635305156
-
-    # Pade approximant
-    num = (
-        1.0
-        + (n_1 * x)
-        + (n_3over2 * x_3over2)
-        + (n_2 * x_2)
-        + (n_5over2 * x_5over2)
-        + (n_3 * x_3)
-    )
-    den = 1.0 + (d_1 * x) + (d_3over2 * x_3over2) + (d_2 * x_2)
-    ratio = num / den
-
-    # Assemble everything
-    psi_T = -kappa * c_Newt / (X1 * X2) * x_5over2
-    psi_T *= ratio
-
-    return psi_T
-
 
 def get_spin_phase_correction(x: Array, theta: Array) -> Array:
     """

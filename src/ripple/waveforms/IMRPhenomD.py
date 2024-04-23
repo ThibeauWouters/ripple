@@ -474,7 +474,7 @@ def Amp(
 
     # First lets calculate some of the vairables that will be used below
     # Mass variables
-    m1, m2, _, _ = theta
+    m1, m2, _, _, = theta
     m1_s = m1 * gt
     m2_s = m2 * gt
     M_s = m1_s + m2_s
