@@ -391,8 +391,19 @@ def _gen_TaylorF2(
     phasing += shft * f - 2.*phi_ref - ref_phasing + phase_qm
     
     amp = amp0 * jnp.sqrt(-dEnergy/flux) * v
-    
+
+    C1 = C(lambda1)
+    C2 = C(lambda2)
+    R1 = m1/C1
+    R2 = m2/C2
+    # Select a stopping frequency
+    #f_stop = f_ISCO(m1, m2)
+    #f_stop = f_contact(m1, m2, R1, R2)
+    f_stop = f_RLO(m1, m2)
+    #f_stop = f_merger(m1, m2, lambda1, lambda2)
+    A_P = get_planck_taper(f, f_stop)
+
     # Assemble everything in final waveform
-    h0 = amp * jnp.cos(phasing - PI/4) - amp * jnp.sin(phasing - PI/4) * 1.0j
+    h0 = A_P*(amp * jnp.cos(phasing - PI/4) - amp * jnp.sin(phasing - PI/4) * 1.0j)
 
     return h0

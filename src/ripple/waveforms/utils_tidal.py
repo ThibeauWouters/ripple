@@ -3,7 +3,7 @@
 import jax
 import jax.numpy as jnp
 from ..typing import Array
-from ..constants import EulerGamma, gt, m_per_Mpc, C, PI, TWO_PI, MSUN, MRSUN
+from ..constants import EulerGamma, gt, m_per_Mpc, C, PI, TWO_PI, MSUN, MRSUN, G
 
 def universal_relation(coeffs: Array, x: float):
     """Applies the general formula of a universal relationship, which is a quartic polynomial.
@@ -183,6 +183,83 @@ def get_planck_taper_der(x,y):
     tangent_out = jnp.nan_to_num(tangent_out)
     return tangent_out
 get_planck_taper.defjvps(None, lambda y_dot, primal_out, x, y: get_planck_taper_der(x,y) * y_dot)
+
+def C(Lambda):
+    ln_Lambda = jnp.log(Lambda)
+    return 0.371 - 3.91 * 10**(-2) * ln_Lambda + 1.056 * 10**(-3) * ln_Lambda**2
+
+def kappa_eff(m1, m2, L1, L2):
+    """
+    m1, m2: masses of the two objects in solar mass
+    L1, L2: lambdas of the two objects
+    """
+    M = m1 + m2
+    X1 = m1/M
+    X2 = m2/M
+    term1 = (1.0 + 12.0 * X2 / X1) * (X1 ** 5.0) * L1
+    term2 = (1.0 + 12.0 * X1 / X2) * (X2 ** 5.0) * L2
+    kappa = (3./13.) * (term1 + term2)
+    return kappa
+
+def f_ISCO(m1, m2):
+    """
+    m1, m2: masses of the two objects in solar mass
+    """
+    m1 = m1 * MSUN
+    m2 = m2 * MSUN
+    M = m1 + m2
+    ## Equation 12 of Agathos et al ##
+    return C**3 / (6**(3/2) * G * PI * M)
+
+def f_contact(m1, m2, R1, R2):
+    """
+    m1, m2: masses of the two objects in solar mass
+    R1, R2: radii of the two objects in km
+    """
+    m1 = m1*MSUN
+    m2 = m2*MSUN
+    M = m1 + m2
+    R = R1*1000 + R2*1000
+    M = M * G / C**3
+    R = R/C
+    ## Eqation 14 of Agathos et al ##
+    return 1/PI * (M / R**3)**(1/2)
+
+def f_RLO(m1, m2):
+    """
+    m1, m2: masses of the two objects in solar mass
+    """
+    M = m1+m2
+    m1M = m1/MSUN
+    m2M = m2/MSUN
+    ## Equation 7 of Primordial black holes or else? ##
+    return -26.9 -35.5*m1 -3.02*m1**2 + 1690*m2 - 575*m2**2
+
+def f_merger(m1, m2, L1, L2):
+    """
+    m1, m2: masses of the two objects in solar mass
+    """
+    M = m1+m2
+    M_s = M * (G * MSUN/c**3)
+    X1 = m1/M
+    X2 = m2/M
+    q = m1/m2
+    kappa = kappa_eff(m1, m2, L1, L2)
+
+    #Initialize coefficients
+    omega_0 = 0.3586
+    n_1 = 3.35411203e-2
+    n_2 = 4.31460284e-5
+    d_1 = 7.54224145e-2
+    d_2 = 2.23626859e-4
+    #Calculate each term 
+    prefactor = omega_0 * jnp.sqrt(X2/X1)
+    numerator =   1 + n_1 * kappa + n_2 * kappa**2
+    denominator = 1 + d_1 * kappa + d_2 * kappa**2
+    #Calculate omega merger
+    omega_merger = prefactor * (numerator/denominator)
+    freq_merger = omega_merger / M_s / (2*jnp.pi)
+    return freq_merger
         
 
 def get_tidal_amplitude(x: Array, theta: Array, kappa: float, distance: float =1):
