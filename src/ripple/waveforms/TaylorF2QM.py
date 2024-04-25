@@ -169,7 +169,7 @@ def get_PNPhasing_F2(m1: float, m2: float, S1z: float, S2z: float, lambda1: floa
     return phasing_coeffs, phasing_log_coeffs
 
 
-def gen_TaylorF2(f: Array, params: Array, f_ref: float, stop:str, use_lambda_tildes: bool = True):
+def gen_TaylorF2(f: Array, params: Array, f_ref: float, stop:str="ISCO", use_lambda_tildes: bool = True):
     """
     Generate TaylorF2 frequency domain waveform 
     
@@ -242,7 +242,7 @@ def _gen_TaylorF2(
     theta_intrinsic: Array,
     theta_extrinsic: Array,
     f_ref: float,
-    stop: str,
+    stop: str="ISCO",
     add_psi_qm: bool = False,
 ):
     """Generates the TaylorF2 waveform accoding to lal implementation.
