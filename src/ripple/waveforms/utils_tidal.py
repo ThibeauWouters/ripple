@@ -184,7 +184,7 @@ def get_planck_taper_der(x,y):
     return tangent_out
 get_planck_taper.defjvps(None, lambda y_dot, primal_out, x, y: get_planck_taper_der(x,y) * y_dot)
 
-def C(Lambda):
+def compactness(Lambda):
     ln_Lambda = jnp.log(Lambda)
     return 0.371 - 3.91 * 10**(-2) * ln_Lambda + 1.056 * 10**(-3) * ln_Lambda**2
 
