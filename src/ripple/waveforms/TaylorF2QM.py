@@ -169,7 +169,7 @@ def get_PNPhasing_F2(m1: float, m2: float, S1z: float, S2z: float, lambda1: floa
     return phasing_coeffs, phasing_log_coeffs
 
 
-def gen_TaylorF2(f: Array, params: Array, f_ref: float, stop:str="ISCO", use_lambda_tildes: bool = True):
+def gen_TaylorF2(f: Array, params: Array, f_ref: float, stop:str="None", use_lambda_tildes: bool = True):
     """
     Generate TaylorF2 frequency domain waveform 
     
@@ -206,7 +206,7 @@ def gen_TaylorF2(f: Array, params: Array, f_ref: float, stop:str="ISCO", use_lam
     return h0
 
 
-def gen_TaylorF2_hphc(f: Array, params: Array, f_ref: float, use_lambda_tildes: bool = True, stop:str="ISCO"):
+def gen_TaylorF2_hphc(f: Array, params: Array, f_ref: float, use_lambda_tildes: bool = True, stop:str="None"):
     """
     Generate PhenomD frequency domain waveform following 1508.07253.
     vars array contains both intrinsic and extrinsic variables
@@ -242,7 +242,7 @@ def _gen_TaylorF2(
     theta_intrinsic: Array,
     theta_extrinsic: Array,
     f_ref: float,
-    stop: str="ISCO",
+    stop: str="None",
     add_psi_qm: bool = False,
 ):
     """Generates the TaylorF2 waveform accoding to lal implementation.
@@ -405,11 +405,13 @@ def _gen_TaylorF2(
         f_stop = f_RLO(m1, m2)
     elif stop == "merger":
         f_stop = f_merger(m1, m2, lambda1, lambda2)
-    else:
+    elif stop == "ISCO":
         f_stop = f_ISCO(m1, m2)
+    else:
+        h0 = amp * jnp.cos(phasing - PI/4) - amp * jnp.sin(phasing - PI/4) * 1.0j
+        return h0
     
     A_P = get_planck_taper(f, f_stop)
-
     # Assemble everything in final waveform
     h0 = A_P*(amp * jnp.cos(phasing - PI/4) - amp * jnp.sin(phasing - PI/4) * 1.0j)
 
