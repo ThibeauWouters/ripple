@@ -379,3 +379,50 @@ def get_spin_induced_quadrupole_phase(v: Array, theta: Array) -> Array:
     psi_qm = - (30 / (128 * eta)) * sigma_qm / v
     
     return psi_qm
+
+def get_TaylorF2_taper(f: Array, theta: Array, stop: str) -> Array:
+    """
+    Get a tapering of the waveform as used in the TaylorF2 variants
+
+    Args:
+        f (Array): Frequency array
+        theta (Array): Array of intrinsic parameters, including lambdas
+        stop (str): String denoting which stopping frequency computation to use
+
+    Raises:
+        ValueError: In case the stop string is not supported
+
+    Returns:
+        Array: An array to be used as the taper, i.e. the prefactor before the amplitude. 
+    """
+    
+    try:
+        m1, m2, _, _, lambda1, lambda2, _, _ = theta
+    except Exception:
+        m1, m2, _, _, lambda1, lambda2 = theta
+    
+    supported = ["contact", "RLO", "merger", "ISCO", "None"]
+    if stop not in supported:
+        space = " "
+        raise ValueError(f"Stopping frequency {stop} not supported. Supported values are {supported.join(space)}")
+    
+    # Select a stopping frequency
+    if stop == "contact":
+        C1 = compactness(lambda1)
+        C2 = compactness(lambda2)
+        R1 = m1/C1
+        R2 = m2/C2
+        f_stop = f_contact(m1, m2, R1, R2)
+    elif stop == "RLO":
+        f_stop = f_RLO(m1, m2)
+    elif stop == "merger":
+        f_stop = f_merger(m1, m2, lambda1, lambda2)
+    elif stop == "ISCO":
+        f_stop = f_ISCO(m1, m2)
+    else:
+        A_P = jnp.ones_like(f)
+        return A_P
+    
+    A_P = get_planck_taper(f, f_stop)
+    
+    return A_P

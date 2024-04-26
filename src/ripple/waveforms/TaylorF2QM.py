@@ -243,7 +243,6 @@ def _gen_TaylorF2(
     theta_extrinsic: Array,
     f_ref: float,
     stop: str="None",
-    add_psi_qm: bool = False,
 ):
     """Generates the TaylorF2 waveform accoding to lal implementation.
     
@@ -268,7 +267,14 @@ def _gen_TaylorF2(
         Array: GW strain, evaluated at given frequencies
     """
     
-    m1, m2, chi1, chi2, lambda1, lambda2 = theta_intrinsic
+    try:
+        m1, m2, chi1, chi2, lambda1, lambda2, a1, a2 = theta_intrinsic
+    except ValueError:
+        m1, m2, chi1, chi2, lambda1, lambda2 = theta_intrinsic
+        a1 = jnp.inf
+        a2 = jnp.inf
+        theta_intrinsic = jnp.array([m1, m2, chi1, chi2, lambda1, lambda2, a1, a2])
+        
     dist_mpc, tc, phi_ref = theta_extrinsic
     m1_s = m1 * gt
     m2_s = m2 * gt
@@ -393,25 +399,9 @@ def _gen_TaylorF2(
     
     amp = amp0 * jnp.sqrt(-dEnergy/flux) * v
 
-    
-    # Select a stopping frequency
-    if stop == "contact":
-        C1 = compactness(lambda1)
-        C2 = compactness(lambda2)
-        R1 = m1/C1
-        R2 = m2/C2
-        f_stop = f_contact(m1, m2, R1, R2)
-    elif stop == "RLO":
-        f_stop = f_RLO(m1, m2)
-    elif stop == "merger":
-        f_stop = f_merger(m1, m2, lambda1, lambda2)
-    elif stop == "ISCO":
-        f_stop = f_ISCO(m1, m2)
-    else:
-        h0 = amp * jnp.cos(phasing - PI/4) - amp * jnp.sin(phasing - PI/4) * 1.0j
-        return h0
-    
-    A_P = get_planck_taper(f, f_stop)
+    # Add the taper
+    A_P = get_TaylorF2_taper(f, theta_intrinsic, stop=stop)
+
     # Assemble everything in final waveform
     h0 = A_P*(amp * jnp.cos(phasing - PI/4) - amp * jnp.sin(phasing - PI/4) * 1.0j)
 

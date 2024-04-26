@@ -169,7 +169,7 @@ def get_PNPhasing_F2(m1: float, m2: float, S1z: float, S2z: float, lambda1: floa
     return phasing_coeffs, phasing_log_coeffs
 
 
-def gen_TaylorF2(f: Array, params: Array, f_ref: float, use_lambda_tildes: bool = True):
+def gen_TaylorF2(f: Array, params: Array, f_ref: float, use_lambda_tildes: bool = True, stop: str = "None"):
     """
     Generate TaylorF2 frequency domain waveform 
     
@@ -201,12 +201,13 @@ def gen_TaylorF2(f: Array, params: Array, f_ref: float, use_lambda_tildes: bool 
     theta_intrinsic = jnp.array([m1, m2, params[2], params[3], lambda1, lambda2])
     theta_extrinsic = jnp.array([params[6], params[7], params[8]])
     
-    h0 = _gen_TaylorF2(f, theta_intrinsic, theta_extrinsic, f_ref)
+    h0 = _gen_TaylorF2(f, theta_intrinsic, theta_extrinsic, f_ref, stop=stop)
     
     return h0
 
 
-def gen_TaylorF2_hphc(f: Array, params: Array, f_ref: float, use_lambda_tildes: bool = True):
+def gen_TaylorF2_hphc(f: Array, params: Array, f_ref: float, use_lambda_tildes: bool = True,
+                      stop: str = "None"):
     """
     Generate PhenomD frequency domain waveform following 1508.07253.
     vars array contains both intrinsic and extrinsic variables
@@ -230,7 +231,7 @@ def gen_TaylorF2_hphc(f: Array, params: Array, f_ref: float, use_lambda_tildes: 
         hc (array): Strain of the cross polarization
     """
     iota = params[-1]
-    h0 = gen_TaylorF2(f, params, f_ref, use_lambda_tildes=use_lambda_tildes)
+    h0 = gen_TaylorF2(f, params, f_ref, use_lambda_tildes=use_lambda_tildes, stop=stop)
 
     hp = h0 * (1 / 2 * (1 + jnp.cos(iota) ** 2))
     hc = -1j * h0 * jnp.cos(iota)
@@ -242,7 +243,7 @@ def _gen_TaylorF2(
     theta_intrinsic: Array,
     theta_extrinsic: Array,
     f_ref: float,
-    add_psi_qm: bool = False,
+    stop: str = "None"
 ):
     """Generates the TaylorF2 waveform accoding to lal implementation.
     
@@ -391,7 +392,10 @@ def _gen_TaylorF2(
     
     amp = amp0 * jnp.sqrt(-dEnergy/flux) * v
     
-    # Assemble everything in final waveform
-    h0 = amp * jnp.cos(phasing - PI/4) - amp * jnp.sin(phasing - PI/4) * 1.0j
+    # Add the taper
+    A_P = get_TaylorF2_taper(f, theta_intrinsic, stop=stop)
 
+    # Assemble everything in final waveform
+    h0 = A_P*(amp * jnp.cos(phasing - PI/4) - amp * jnp.sin(phasing - PI/4) * 1.0j)
+    
     return h0
