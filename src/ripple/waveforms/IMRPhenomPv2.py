@@ -16,8 +16,6 @@ from .IMRPhenomD_utils import *
 def PhenomPCoreTwistUp(
     fHz,
     hPhenom,
-    # phase,
-    # Amp,
     eta,
     chi1_l,
     chi2_l,
@@ -39,7 +37,6 @@ def PhenomPCoreTwistUp(
     Sperp = chip * (
         m2 * m2
     )  # Dimensionfull spin component in the orbital plane. S_perp = S_2_perp
-    # chi_eff = m1 * chi1_l + m2 * chi2_l  # effective spin for M=1
 
     SL = chi1_l * m1 * m1 + chi2_l * m2 * m2  # Dimensionfull aligned spin.
 
@@ -64,7 +61,6 @@ def PhenomPCoreTwistUp(
         + angcoeffs["epsiloncoeff5"] * omega_cbrt
     ) - epsilonoffset
 
-    # print("alpha, epsilon: ", alpha, epsilon)
     cBetah, sBetah = WignerdCoefficients(omega_cbrt, SL, eta, Sperp)
 
     cBetah2 = cBetah * cBetah
@@ -74,15 +70,6 @@ def PhenomPCoreTwistUp(
     sBetah3 = sBetah2 * sBetah
     sBetah4 = sBetah3 * sBetah
 
-    # d2 = jnp.array(
-    #     [
-    #         sBetah4,
-    #         2 * cBetah * sBetah3,
-    #         jnp.sqrt(6) * sBetah2 * cBetah2,
-    #         2 * cBetah3 * sBetah,
-    #         cBetah4,
-    #     ]
-    # )
     Y2mA = jnp.array(Y2m)  # need to pass Y2m in a 5-component list
     hp_sum = 0
     hc_sum = 0
@@ -123,15 +110,11 @@ def PhenomPOneFrequency(
     phic: Orbital phase at the peak of the underlying non precessing model (rad)
     M: Total mass (Solar masses)
     """
-    # These are the parametrs that go into the waveform generator
+    # These are the parameters that go into the waveform generator
     # Note that JAX does not give index errors, so if you pass in the
     # the wrong array it will behave strangely
     norm = 2.0 * jnp.sqrt(5.0 / (64.0 * jnp.pi))
     theta_ripple = jnp.array([m1, m2, chi1, chi2])
-    # coeffs = get_coeffs(theta_ripple)
-    # transition_freqs = phP_get_transition_frequencies(
-    #     theta_ripple, coeffs[5], coeffs[6], chip
-    # )
 
     phase = PhDPhase(fs, theta_ripple, coeffs, transition_freqs)
     Dphi = lambda f: -PhDPhase(f, theta_ripple, coeffs, transition_freqs)
@@ -142,28 +125,6 @@ def PhenomPOneFrequency(
     # phase -= 2. * phic; # line 1316 ???
     hPhenom = Amp * (jnp.exp(-1j * phase))
     return hPhenom, Dphi
-
-
-# def PhenomPOneFrequency_phase(
-#     f: float,
-#     m1: float,
-#     m2: float,
-#     chi1: float,
-#     chi2: float,
-#     chip: float,
-#     phic: float,
-#     M: float,
-#     dist_mpc: float,
-# ):
-#     """ """
-#     theta_ripple = jnp.array([m1, m2, chi1, chi2])
-#     coeffs = get_coeffs(theta_ripple)
-#     transition_freqs = phP_get_transition_frequencies(
-#         theta_ripple, coeffs[5], coeffs[6], chip
-#     )
-
-#     phase = PhDPhase(f, theta_ripple, coeffs, transition_freqs)
-#     return -phase
 
 
 def gen_IMRPhenomPv2(

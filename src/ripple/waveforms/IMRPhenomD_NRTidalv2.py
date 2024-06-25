@@ -8,7 +8,9 @@ from ..constants import gt, m_per_Mpc, PI, TWO_PI, MRSUN
 from ..typing import Array
 from ripple import Mc_eta_to_ms, lambda_tildes_to_lambdas
 from .IMRPhenom_tidal_utils import get_quadparam_octparam, get_kappa
-from ripple.waveforms.IMRPhenomD import Phase, Amp, get_IIb_raw_phase
+from ripple.waveforms.IMRPhenomD import Phase as PhenomDPhase
+from ripple.waveforms.IMRPhenomD import Amp as PhenomDAmp
+from ripple.waveforms.IMRPhenomD import get_IIb_raw_phase
 from .IMRPhenomD_utils import (
     get_coeffs,
     get_transition_frequencies,
@@ -327,6 +329,71 @@ def _get_merger_frequency(theta: Array, kappa: float = None):
 
     return fHz_merger
 
+def Amp(f: Array, 
+        theta_intrinsic: Array,
+        bbh_amp: Array,
+        D: float,
+        no_taper: bool = False) -> Array:
+    """
+    Compute the amplitude for the IMRPhenomD_NRTidalv2 waveform.
+
+    Args:
+        f (Array): Frequencies in Hz
+        theta_intrinsic (Array): The intrinsic parameters of the system: m1, m2, chi1, chi2, lambda1, lambda2
+        bbh_amp (Array): The amplitude of the BBH underlying waveform.
+        D (float): Distance in Mpc. 
+        no_taper (bool, optional): Whether to remove the Planck taper. Defaults to False.
+
+    Returns:
+        Array: The amplitude of the IMRPhenomD_NRTidalv2 waveform.
+    """
+    
+    # Convert masses
+    m1, m2, _, _, _, _ = theta_intrinsic
+    m1_s = m1 * gt
+    m2_s = m2 * gt
+    M_s = m1_s + m2_s
+    
+    # Get auxiliary variables
+    kappa = get_kappa(theta_intrinsic)
+    x = (PI * M_s * f) ** (2.0 / 3.0)
+    
+    A_T = get_tidal_amplitude(x, theta_intrinsic, kappa, distance=D)
+    f_merger = _get_merger_frequency(theta_intrinsic, kappa)
+    if no_taper:
+        A_P = jnp.ones_like(f)
+    else:
+        A_P = get_planck_taper(f, f_merger)
+        
+    return A_P * (bbh_amp + A_T)
+
+def Phase(f: Array, 
+          theta_intrinsic: Array,
+          bbh_psi: Array) -> Array:
+    """
+    Get the phase of the IMRPhenomD_NRTidalv2 waveform.
+
+    Args:
+        f (Array): Frequencies in Hz
+        theta_intrinsic (Array): Intrinisic parameters of the system: m1, m2, chi1, chi2, lambda1, lambda2
+        bbh_psi (Array): Phase of the underlying BBH waveform IMRPhenomD.
+
+    Returns:
+        Array: Array of phase values.
+    """
+    
+    m1, m2, _, _, _, _ = theta_intrinsic
+    m1_s = m1 * gt
+    m2_s = m2 * gt
+    M_s = m1_s + m2_s
+    
+    x = (PI * M_s * f) ** (2.0 / 3.0)
+    kappa = get_kappa(theta_intrinsic)
+    psi_T = get_tidal_phase(x, theta_intrinsic, kappa)
+    psi_SS = get_spin_phase_correction(x, theta_intrinsic)
+    psi = -(bbh_psi + psi_T + psi_SS)
+    
+    return psi
 
 def _gen_IMRPhenomD_NRTidalv2(
     f: Array,
@@ -351,41 +418,18 @@ def _gen_IMRPhenomD_NRTidalv2(
         Array: Final complex-valued strain of GW.
     """
 
-    # Compute x: see NRTidalv2 paper for definition
-    m1, m2, _, _, _, _ = theta_intrinsic
-    m1_s = m1 * gt
-    m2_s = m2 * gt
-    M_s = m1_s + m2_s
-    x = (PI * M_s * f) ** (2.0 / 3.0)
+    # Compute amplitude and phase
+    amp = Amp(f, theta_intrinsic, bbh_amp, D=theta_extrinsic[0], no_taper=no_taper)
+    phase = Phase(f, theta_intrinsic, bbh_psi)
 
-    # Compute kappa
-    kappa = get_kappa(theta=theta_intrinsic)
-
-    # Compute amplitudes
-    A_T = get_tidal_amplitude(x, theta_intrinsic, kappa, distance=theta_extrinsic[0])
-    f_merger = _get_merger_frequency(theta_intrinsic, kappa)
-
-    # Decide whether to include the Planck taper or not
-    if no_taper:
-        A_P = jnp.ones_like(f)
-    else:
-        A_P = get_planck_taper(f, f_merger)
-
-    # Get tidal phase and spin corrections for BNS
-    psi_T = get_tidal_phase(x, theta_intrinsic, kappa)
-    psi_SS = get_spin_phase_correction(x, theta_intrinsic)
-
-    # Assemble everything
-    h0 = A_P * (bbh_amp + A_T) * jnp.exp(1.0j * -(bbh_psi + psi_T + psi_SS))
-
-    return h0
+    return amp * jnp.exp(1.0j * phase)
 
 
 def gen_IMRPhenomD_NRTidalv2(
     f: Array,
     params: Array,
     f_ref: float,
-    use_lambda_tildes: bool = True,
+    use_lambda_tildes: bool = False,
     no_taper: bool = False,
 ) -> Array:
     """
@@ -437,23 +481,20 @@ def gen_IMRPhenomD_NRTidalv2(
     )
 
     # Call the amplitude and phase now
-    Psi = Phase(f, bbh_theta_intrinsic, coeffs, transition_freqs)
-    Psi_ref = Phase(f_ref, bbh_theta_intrinsic, coeffs, transition_freqs)
+    bbh_psi = PhenomDPhase(f, bbh_theta_intrinsic, coeffs, transition_freqs)
+    Psi_ref = PhenomDPhase(f_ref, bbh_theta_intrinsic, coeffs, transition_freqs)
     Mf_ref = f_ref * M_s
-    Psi -= t0 * ((f * M_s) - Mf_ref) + Psi_ref
+    bbh_psi -= t0 * ((f * M_s) - Mf_ref) + Psi_ref
     ext_phase_contrib = 2.0 * PI * f * theta_extrinsic[1] - 2 * theta_extrinsic[2]
-    Psi += ext_phase_contrib
+    bbh_psi += ext_phase_contrib
     fcut_above = lambda f: (fM_CUT / M_s)
     fcut_below = lambda f: f[jnp.abs(f - (fM_CUT / M_s)).argmin() - 1]
     fcut_true = jax.lax.cond((fM_CUT / M_s) > f[-1], fcut_above, fcut_below, f)
-    Psi = Psi * jnp.heaviside(fcut_true - f, 0.0) + 2.0 * PI * jnp.heaviside(
+    bbh_psi = bbh_psi * jnp.heaviside(fcut_true - f, 0.0) + 2.0 * PI * jnp.heaviside(
         f - fcut_true, 1.0
     )
-
-    A = Amp(f, bbh_theta_intrinsic, coeffs, transition_freqs, D=theta_extrinsic[0])
-
-    bbh_amp = A
-    bbh_psi = Psi
+    
+    bbh_amp = PhenomDAmp(f, bbh_theta_intrinsic, coeffs, transition_freqs, D=theta_extrinsic[0])
 
     # Use BBH waveform and add tidal corrections
     return _gen_IMRPhenomD_NRTidalv2(
@@ -465,7 +506,7 @@ def gen_IMRPhenomD_NRTidalv2_hphc(
     f: Array,
     params: Array,
     f_ref: float,
-    use_lambda_tildes: bool = True,
+    use_lambda_tildes: bool = False,
     no_taper: bool = False,
 ):
     """
