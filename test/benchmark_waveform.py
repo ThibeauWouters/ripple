@@ -53,12 +53,12 @@ def get_jitted_waveform(waveform_name: str, fs: np.array, f_ref: float):
     
     elif waveform_name == "IMRPhenomD_NRTidalv2":
         # Import the waveform
-        from ripple.waveforms.X_NRTidalv2 import gen_NRTidalv2_hphc as waveform_generator
+        from ripple.waveforms.IMRPhenomD_NRTidalv2 import gen_IMRPhenomD_NRTidalv2_hphc as waveform_generator
         
         # Get jitted version (note, use IMRPhenomD as underlying waveform model)
         @jax.jit
         def waveform(theta):
-            hp, _ = waveform_generator(fs, theta, f_ref, IMRphenom="IMRPhenomD")
+            hp, _ = waveform_generator(fs, theta, f_ref)
             return hp
         
     elif waveform_name == "TaylorF2":
@@ -539,11 +539,11 @@ if __name__ == "__main__":
     
     # Showing an example of benchmarking:
     bounds = {"m": [0.5, 3.0],
-              "chi": [-0.05, 0.05],
+              "chi": [-0.6, 0.6],
               "lambda": [0.0, 5000.0],
-              "d_L": [30.0, 300.0]}
+              "d_L": [30.0, 400.0]}
     
-    approximant = "TaylorF2"
+    approximant = "IMRPhenomD_NRTidalv2"
     print(f"Checking approximant {approximant}")
     print("Checking mismatches wrt LAL")
     df = random_match(1000, bounds, approximant, outdir = "./")

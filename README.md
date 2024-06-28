@@ -1,8 +1,14 @@
 # Ripple :ocean:
 
-A small `jax` package for differentiable and fast gravitational wave data analysis.
+A small `jax` package for differentiable and fast gravitational wave data analysis. 
 
 # Getting Started
+
+Note that Thibeau Wouters and Kaze Wong will soon become the main developers of ripple so please contact them if you have comments/questions.
+
+## Documentation
+
+You can find the full documentation at [Read the Docs](https://ripplegw.readthedocs.io/).
 
 ### Installation
 
