@@ -539,7 +539,7 @@ if __name__ == "__main__":
     
     # Showing an example of benchmarking:
     bounds = {"m": [0.5, 3.0],
-              "chi": [-0.6, 0.6],
+              "chi": [-0.05, 0.05],
               "lambda": [0.0, 5000.0],
               "d_L": [30.0, 400.0]}
     
