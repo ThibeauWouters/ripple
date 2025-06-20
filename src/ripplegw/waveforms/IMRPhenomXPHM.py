@@ -143,12 +143,14 @@ def _gen_IMRPhenomXPHM(
         1.0 + 0j
     )
 
-    # Apply all corrections
-    correction = time_shift * phase_shift * phase_ref_correction
-    hp_corrected = hp * jnp.real(correction) - hc * jnp.imag(correction)
-    hc_corrected = hc * jnp.real(correction) + hp * jnp.imag(correction)
+    # # Apply all corrections
+    # correction = time_shift * phase_shift * phase_ref_correction
+    # hp_corrected = hp * correction
+    # hc_corrected = hc * correction
+    # hp_corrected = hp * jnp.real(correction) - hc * jnp.imag(correction)
+    # hc_corrected = hc * jnp.real(correction) + hp * jnp.imag(correction)
 
-    return hp_corrected, hc_corrected
+    return hp, hc
 
 
 def gen_IMRPhenomXPHM(
