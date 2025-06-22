@@ -11,9 +11,10 @@ import jax
 import jax.numpy as jnp
 import pandas as pd
 from tqdm import tqdm
+from typing import Callable
 
-from ripple import get_eff_pads, get_match_arr, ms_to_Mc_eta, lambdas_to_lambda_tildes
-from ripple.constants import PI
+from ripplegw import get_eff_pads, get_match_arr, ms_to_Mc_eta, lambdas_to_lambda_tildes
+from ripplegw.constants import PI
 
 import lal
 import lalsimulation as lalsim
@@ -25,27 +26,52 @@ jax.config.update("jax_enable_x64", True)
 ###########################
 
 def check_is_tidal(waveform_name: str):
-    # Check if the given waveform is supported:
+    """
+    Checks if the given waveform has tidal parameters that we need to model or not. 
+
+    Args:
+        waveform_name (str): String describing the waveform
+
+    Raises:
+        ValueError: In case the given waveform name is not found in ripple.
+
+    Returns:
+        _type_: _description_
+    """
+    
+    # TODO: this should be determined automatically in ripple higher up
     bns_waveforms = ["IMRPhenomD_NRTidalv2", "TaylorF2"]
-    bbh_waveforms = ["IMRPhenomD"]
+    bbh_waveforms = ["IMRPhenomD", "IMRPhenomXAS"]
     
     all_waveforms = bns_waveforms + bbh_waveforms
     if waveform_name not in all_waveforms:
-        raise ValueError(f"Waveform approximant {waveform_name} not supported by ripple")
+        raise ValueError(f"Waveform approximant {waveform_name} not supported by ripplegw")
     
-    if waveform_name in bns_waveforms:
-        is_tidal = True
-    else:
-        is_tidal = False
+    is_tidal = waveform_name in bns_waveforms
     
     return is_tidal
 
-def get_jitted_waveform(waveform_name: str, fs: np.array, f_ref: float):
+def get_jitted_waveform(waveform_name: str, fs: np.array, f_ref: float) -> Callable:
+    """
+    Get the jitted waveform model based on the passed waveform name string.
+    # TODO: avoid switch by string
+    # TODO: make this easier to import here from higher up
+    # TODO: Might want to make this easier and also pass hc for checking
+
+    Args:
+        waveform_name (str): Name of the waveform.
+        fs (np.array): Frequency grid
+        f_ref (float): Reference frequency to be used in the waveform.
+
+    Raises:
+        ValueError: In case the given argument is not OK
+
+    Returns:
+        Callable: Jitted waveform function
+    """
     if waveform_name == "IMRPhenomD":
-        # Import the waveform
-        from ripple.waveforms.IMRPhenomD import gen_IMRPhenomD_hphc as waveform_generator
+        from ripplegw.waveforms.IMRPhenomD import gen_IMRPhenomD_hphc as waveform_generator
         
-        # Get jitted version (note, use IMRPhenomD as underlying waveform model)
         @jax.jit
         def waveform(theta):
             hp, _ = waveform_generator(fs, theta, f_ref)
@@ -53,7 +79,7 @@ def get_jitted_waveform(waveform_name: str, fs: np.array, f_ref: float):
     
     elif waveform_name == "IMRPhenomD_NRTidalv2":
         # Import the waveform
-        from ripple.waveforms.X_NRTidalv2 import gen_NRTidalv2_hphc as waveform_generator
+        from ripplegw.waveforms.IMRPhenomD_NRTidalv2 import gen_IMRPhenomD_NRTidalv2 as waveform_generator
         
         # Get jitted version (note, use IMRPhenomD as underlying waveform model)
         @jax.jit
@@ -63,7 +89,7 @@ def get_jitted_waveform(waveform_name: str, fs: np.array, f_ref: float):
         
     elif waveform_name == "TaylorF2":
         # Import the waveform
-        from ripple.waveforms.TaylorF2 import gen_TaylorF2_hphc as waveform_generator
+        from ripplegw.waveforms.TaylorF2 import gen_TaylorF2_hphc as waveform_generator
         
         # Get jitted version
         @jax.jit
@@ -72,11 +98,23 @@ def get_jitted_waveform(waveform_name: str, fs: np.array, f_ref: float):
             return hp
     
     else:
-        raise ValueError(f"Waveform approximant {waveform_name} not supported by ripple")
+        raise ValueError(f"Waveform approximant {waveform_name} not supported by ripplegw")
     
     return waveform
 
-def get_freqs(f_l, f_u, f_sampling, T):
+def get_freqs(f_l: float, f_u: float, f_sampling: float, T: float) -> np.array:
+    """
+    Small auxiliary function to build the frequency grid.
+
+    Args:
+        f_l (float): Lower frequency bound.
+        f_u (float): Upper frequency bound.
+        f_sampling (float): Sampling frequency.
+        T (float): Duration in seconds.
+
+    Returns:
+        np.array: Frequency grid.
+    """
     # Build the frequency grid
     delta_t = 1 / f_sampling
     tlen = int(round(T / delta_t))
@@ -89,11 +127,15 @@ def get_freqs(f_l, f_u, f_sampling, T):
 ### Match against LAL ###
 #########################
 
-def random_match(n: int, bounds: dict, IMRphenom: str = "IMRPhenomD_NRTidalv2", outdir: str = None, psd_file: str = "psds/psd.txt"):
+def random_match(n: int,
+                 bounds: dict,
+                 IMRphenom: str = "IMRPhenomD_NRTidalv2",
+                 outdir: str = None,
+                 psd_file: str = "psds/psd.txt"):
     """
-    Generates random waveform match scores between LAL and ripple.
+    Generates random waveform match scores between LAL and ripplegw.
     
-    Note, currently only IMRPhenomD is supported.
+    Note, currently only IMRPhenomD is supported. # TODO: extend or check if outdated comment
     Args:
         n: int
             number of matches to be made
@@ -111,7 +153,7 @@ def random_match(n: int, bounds: dict, IMRphenom: str = "IMRPhenomD_NRTidalv2", 
     # Frequencies
     f_l = 20
     f_sampling = 2 * 2048
-    T = 256
+    T = 128
     f_u = f_sampling // 2
     f_ref = f_l
     fs = get_freqs(f_l, f_u, f_sampling, T)
@@ -153,8 +195,10 @@ def non_precessing_matchmaking(
     m2 = np.random.uniform(bounds["m"][0], bounds["m"][1])
     s1 = np.random.uniform(bounds["chi"][0], bounds["chi"][1])
     s2 = np.random.uniform(bounds["chi"][0], bounds["chi"][1])
-    l1 = np.random.uniform(bounds["lambda"][0], bounds["lambda"][1])
-    l2 = np.random.uniform(bounds["lambda"][0], bounds["lambda"][1])
+    
+    if is_tidal:
+        l1 = np.random.uniform(bounds["lambda"][0], bounds["lambda"][1])
+        l2 = np.random.uniform(bounds["lambda"][0], bounds["lambda"][1])
 
     dist_mpc = np.random.uniform(bounds["d_L"][0], bounds["d_L"][1])
     tc = 0.0
@@ -163,17 +207,15 @@ def non_precessing_matchmaking(
     
     # Ensure m1 > m2
     if m1 < m2:
-        theta = np.array([m2, m1, s2, s1, l2, l1, dist_mpc, tc, phi_ref, inclination])
-    elif m1 >= m2:
+        tmp = m1
+        m1 = m2 
+        m2 = tmp
+        assert m1 >= m2, "I messed up."
+    
+    if is_tidal:
         theta = np.array([m1, m2, s1, s2, l1, l2, dist_mpc, tc, phi_ref, inclination])
     else:
-        raise ValueError("Something went wrong with the parameters")
-    
-    # If not tidal, remove l1 and l2 from theta
-    if not is_tidal:
-        theta = np.delete(theta, [4, 5])
-        l1 = 0.0
-        l2 = 0.0
+        theta = np.array([m1, m2, s1, s2, dist_mpc, tc, phi_ref, inclination])
     
     # Get approximant for lal
     approximant = lalsim.SimInspiralGetApproximantFromString(IMRphenom)
@@ -207,9 +249,9 @@ def non_precessing_matchmaking(
         distance,
         inclination,
         phi_ref,
-        0,
-        0,
-        0,
+        0.0, # TODO: add what this is
+        0.0, # TODO: add what this is
+        0.0, # TODO: add what this is
         df,
         f_l,
         f_u,
@@ -223,23 +265,23 @@ def non_precessing_matchmaking(
     freqs_lal = freqs_lal[mask_lal]
     hp_lalsuite = hp.data.data[mask_lal]
     
-    # Get the ripple waveform
+    # Get the ripplegw waveform
     Mc, eta = ms_to_Mc_eta(jnp.array([theta[0], theta[1]]))
     lambda_tilde, delta_lambda_tilde = lambdas_to_lambda_tildes(jnp.array([l1, l2, m1, m2]))
 
-    theta_ripple = jnp.array(
+    theta_ripplegw = jnp.array(
         [Mc, eta, theta[2], theta[3], lambda_tilde, delta_lambda_tilde, dist_mpc, tc, phi_ref, inclination]
     )
     
     # If not tidal, remove lambda parameters
     if not is_tidal:
-        theta_ripple = jnp.delete(theta_ripple, jnp.array([4, 5]))
+        theta_ripplegw = jnp.delete(theta_ripplegw, jnp.array([4, 5]))
     
-    hp_ripple = waveform(theta_ripple)
+    hp_ripplegw = waveform(theta_ripplegw)
     
     # Check if strain has NaNs
-    if jnp.isnan(hp_ripple).any():
-        print("NaNs in ripple strain")
+    if jnp.isnan(hp_ripplegw).any():
+        print("NaNs in ripplegw strain")
     
     if jnp.isnan(hp_lalsuite).any():
         print("NaNs in lalsuite strain")
@@ -252,7 +294,7 @@ def non_precessing_matchmaking(
             pad_low,
             pad_high,
             PSD_vals,
-            hp_ripple,
+            hp_ripplegw,
             hp_lalsuite,
         )
     )
@@ -275,18 +317,18 @@ def save_matches(filename, thetas, matches, verbose=True, is_tidal=False):
         
         mismatches = np.log10(1 - matches)
         
-        my_dict = {'m1': m1, 
-                'm2': m2, 
-                'chi1': chi1, 
-                'chi2': chi2, 
-                'lambda1': lambda1, 
-                'lambda2': lambda2,
-                'dist_mpc': dist_mpc,
-                'tc': tc,
-                'phi_ref': phi_ref,
-                'inclination': inclination,
-                'match': matches, 
-                'mismatch': mismatches}
+        my_dict = {'m1': m1,
+                   'm2': m2,
+                   'chi1': chi1,
+                   'chi2': chi2,
+                   'lambda1': lambda1,
+                   'lambda2': lambda2,
+                   'dist_mpc': dist_mpc,
+                   'tc': tc,
+                   'phi_ref': phi_ref,
+                   'inclination': inclination,
+                   'match': matches,
+                   'mismatch': mismatches}
     else:
         m1          = thetas[:, 0]
         m2          = thetas[:, 1]
@@ -362,36 +404,36 @@ def benchmark_speed(IMRphenom: str, n: int = 10_000):
     Mc, eta = ms_to_Mc_eta(jnp.array([m1, m2]))
     lambda_tilde, delta_lambda_tilde = lambdas_to_lambda_tildes(jnp.array([l1, l2, m1, m2]))
 
-    theta_ripple = np.array(
+    theta_ripplegw = np.array(
         [Mc, eta, s1, s2, lambda_tilde, delta_lambda_tilde, dist_mpc, tc, phi_ref, inclination]
     ).T
     
     # If not tidal, remove lambda parameters
     if not is_tidal:
-        theta_ripple = np.delete(theta_ripple, [4, 5], axis=1)
+        theta_ripplegw = np.delete(theta_ripplegw, [4, 5], axis=1)
     
     # Perform the compilation before we time
     print("JIT compiling")
-    waveform(theta_ripple[0])[0].block_until_ready()
+    waveform(theta_ripplegw[0])[0].block_until_ready()
     print("Finished JIT compiling")
     
     # First, benchmark the jitted version
     print("Benchmarking . . .")
     start = time.time()
-    for t in theta_ripple:
+    for t in theta_ripplegw:
         waveform(t)[0].block_until_ready()
     end = time.time()
-    print("Ripple waveform call takes: %.6f ms" % ((end - start) * 1000 / n))
+    print("ripplegw waveform call takes: %.6f ms" % ((end - start) * 1000 / n))
 
     # Second, benchmark the vmapped version
     func = jax.vmap(waveform)
-    func(theta_ripple)[0].block_until_ready()
+    func(theta_ripplegw)[0].block_until_ready()
     
     print("Benchmarking . . .")
     start = time.time()
-    func(theta_ripple)[0].block_until_ready()
+    func(theta_ripplegw)[0].block_until_ready()
     end = time.time()
-    print("Vmapped ripple waveform call takes: %.6f ms" % ((end - start) * 1000 / n))
+    print("Vmapped ripplegw waveform call takes: %.6f ms" % ((end - start) * 1000 / n))
     
     
 def benchmark_speed_lal(IMRphenom, n: int = 10_000):
@@ -538,14 +580,14 @@ def benchmark_speed_lal(IMRphenom, n: int = 10_000):
 if __name__ == "__main__":
     
     # Showing an example of benchmarking:
-    bounds = {"m": [0.5, 3.0],
-              "chi": [-0.05, 0.05],
-              "lambda": [0.0, 5000.0],
-              "d_L": [30.0, 300.0]}
+    bounds = {"m": [1.0, 3.0],
+              "chi": [-0.99, 0.99],
+              "lambda": [0.0, 10_000.0],
+              "d_L": [10.0, 1000.0]}
     
     approximant = "TaylorF2"
     print(f"Checking approximant {approximant}")
     print("Checking mismatches wrt LAL")
-    df = random_match(1000, bounds, approximant, outdir = "./")
+    df = random_match(100, bounds, approximant, outdir = "./")
     print("Done. The dataframe is:")
     print(df)
