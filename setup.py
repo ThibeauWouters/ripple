@@ -1,3 +1,8 @@
-import setuptools
+from setuptools import setup
 
-setuptools.setup()
+setup(
+    name="ripplegw",
+    install_requires=[
+        "ripplegw",
+    ],
+)
